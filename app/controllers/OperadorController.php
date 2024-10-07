@@ -92,7 +92,7 @@ class OperadorController extends \BaseController {
 	    ));
 
 	    // Find the group using the group id
-	    $operadorGroup = Sentry::findGroupByName('Operador');
+	    $operadorGroup = Sentry::findGroupByName('OperadorEsp');
 
 	    // Assign the group to the user
 	    $user->addGroup($operadorGroup);
