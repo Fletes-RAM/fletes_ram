@@ -565,7 +565,9 @@ class ReporteController extends \BaseController
         $this->layout = View::make('sistema.reporte.unidades_2023');
       } elseif (Input::get('rango')==6) {
         $this->layout = View::make('sistema.reporte.unidades_2024');
-      }
+      } elseif (Input::get('rango')==7) {
+        $this->layout = View::make('sistema.reporte.unidades_2025');
+      } 
       $this->layout->fecha1 = Input::get('fecha1') . ' 00:00:00';
       $this->layout->fecha2 = Input::get('fecha2') . ' 23:59:59';
       $this->layout->title    = 'Reporte Unidades / Operadores';
@@ -610,6 +612,9 @@ class ReporteController extends \BaseController
           break;
         case 7:
           $anno = 2024;
+          break;
+        case 8:
+          $anno = 2025;
           break;
       }
 

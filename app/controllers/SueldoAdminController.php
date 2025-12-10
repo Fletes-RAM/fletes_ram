@@ -125,7 +125,7 @@ class SueldoAdminController extends \BaseController
         $this->layout->title    = 'Detalle de Sueldo';
         $this->layout->sueldos  = Sueldo::where('operador_id',$id)->get();
         $this->layout->operador = $id;
-        $this->layout->user     = User::find($id);
+        $this->layout->user     = User::withTrashed()->find($id);
 
         // add breadcrumb to current page
         $this->layout->breadcrumb = array(
