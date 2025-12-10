@@ -20,6 +20,8 @@
 		$url = 'https://www.seektable.com/public/report/9e02f61c51a746ada981dcf6aeba5aac';
   	}elseif ($anno == 2024) {
 		$url = 'https://www.seektable.com/public/report/93d266cf208b4d689b5d4a15e70647ed';
+  	}elseif ($anno == 2025) {
+		$url = 'https://www.seektable.com/public/report/e228002b9c224a4488f5bd564e02afdd';
   	}
 
   ?>

@@ -351,7 +351,8 @@
                                             '3'=>'Del 1 de Enero al 31 de Diciembre del 2021',
                                             '4'=>'Del 1 de Enero al 31 de Diciembre del 2022',
                                             '5'=>'Del 1 de Enero al 31 de Diciembre del 2023',
-                                            '6'=>'Del 1 de Enero al 31 de Diciembre del 2024'
+                                            '6'=>'Del 1 de Enero al 31 de Diciembre del 2024',
+                                            '7'=>'Del 1 de Enero al 31 de Diciembre del 2025'
                                             ], null, ['class'=>'form-control','required']) }}
               </div>
               
@@ -388,7 +389,8 @@
                                             '4'=>'2021',
                                             '5'=>'2022',
                                             '6'=>'2023',
-                                            '7'=>'2024'
+                                            '7'=>'2024',
+                                            '8'=>'2025'
                                             ], null, ['class'=>'form-control','required']) }}
               </div>
             </div>
