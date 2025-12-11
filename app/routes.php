@@ -884,6 +884,11 @@ Route::group(array('before' => 'basicAuth|hasPermissions'), function () {
 
     Route::resource('proveedor', 'ProveedorController');
 
+    Route::post('proveedor/asignar-factura', [
+      'as'   => 'proveedor.asignarFactura',
+      'uses' => 'ProveedorController@postAsignarFactura'
+  ]);
+
     Route::resource('mantenimiento', 'MantenimientoController');
 
     Route::resource('cat_proveedor', 'CatProveedorController');

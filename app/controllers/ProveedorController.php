@@ -178,5 +178,116 @@ class ProveedorController extends \BaseController {
 		//
 	}
 
+	public function postAsignarFactura()
+	{
+		$idsStr           = Input::get('comprobantes_ids');
+		$facturaProveedor = Input::get('factura_proveedor');
+		$fechaLimitePago  = Input::get('fecha_limite_pago');
+
+		if (empty($idsStr)) {
+			return Redirect::back()->with('error', 'No se recibieron comprobantes seleccionados.');
+		}
+
+		// Ejemplo: "a-10,e-17920,e-18844"
+		$ids = array_filter(explode(',', $idsStr));
+
+		if (empty($ids)) {
+			return Redirect::back()->with('error', 'No se seleccionó ningún comprobante válido.');
+		}
+
+		// Validar que todos los tickets pertenezcan a la misma gasolinera
+		$gasolineraBase = null;
+
+		foreach ($ids as $valor) {
+
+			if (strpos($valor, '-') === false) {
+				continue;
+			}
+
+			list($tipo, $id) = explode('-', $valor);
+
+			if ($tipo === 'a') {
+				$ticket = AsignacionCombustible::find($id);
+			} elseif ($tipo === 'e') {
+				$ticket = AsignacionEspecial::find($id);
+			} else {
+				continue;
+			}
+
+			if (!$ticket) continue;
+
+			if (!$gasolineraBase) {
+				// primera gasolinera encontrada
+				$gasolineraBase = $ticket->gasolinera_id;
+			} else {
+				// validar
+				if ($gasolineraBase != $ticket->gasolinera_id) {
+					return Redirect::back()
+						->with('error', 'Los tickets seleccionados no pertenecen a la misma gasolinera. No se pueden facturar juntos.');
+				}
+			}
+		}
+
+		// Validaciones básicas
+		$rules = [
+			'factura_proveedor' => 'required',
+			'fecha_limite_pago' => 'required|date',
+		];
+
+		$validator = Validator::make(Input::all(), $rules);
+
+		if ($validator->fails()) {
+			return Redirect::back()
+				->withErrors($validator)
+				->withInput();
+		}
+
+		try {
+			DB::beginTransaction();
+
+			foreach ($ids as $valor) {
+				// valor = "a-10" o "e-17920"
+				if (strpos($valor, '-') === false) {
+					// Si algo viene raro, lo brincamos
+					continue;
+				}
+
+				list($tipo, $id) = explode('-', $valor);
+
+				$ticket = null;
+
+				if ($tipo === 'a') {
+					// Ticket de AsignacionCombustible
+					$ticket = AsignacionCombustible::find($id);
+				} elseif ($tipo === 'e') {
+					// Ticket de AsignacionEspecial
+					$ticket = AsignacionEspecial::find($id);
+				}
+
+				if (!$ticket) {
+					continue;
+				}
+
+				// Asegúrate de que estos campos existan en las tablas correspondientes:
+				//  - factura_proveedor (VARCHAR)
+				//  - dias_credito (INT)
+				$ticket->factura_proveedor = $facturaProveedor;
+				$ticket->fecha_limite_pago = $fechaLimitePago;
+				$ticket->save();
+			}
+
+			DB::commit();
+
+			return Redirect::route('proveedor.index')
+				->with('success', 'Se asignó la factura y los días de crédito a los comprobantes seleccionados.');
+		} catch (\Exception $e) {
+			DB::rollBack();
+			// Log::error($e);
+			return Redirect::back()->with('error', 'Ocurrió un error al asignar la factura. Inténtalo de nuevo.');
+		}
+	}
+
+
+
 
 }

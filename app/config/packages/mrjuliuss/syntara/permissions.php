@@ -256,6 +256,7 @@ INSERT INTO `ram_permissions` ( `name`, `value`, `description`, `created_at`, `u
      'proveedor.edit'    => 'update-proveedor-info',
      'proveedor.update'  => 'update-proveedor-info',
      'proveedor.destroy' => 'delete-proveedor',
+     'proveedor.asignarFactura' => 'create-proveedor', // o el que uses aquí
 
      'mantenimiento.index'   => 'view-mantenimiento-list',
      'mantenimiento.create'  => 'create-mantenimiento',
