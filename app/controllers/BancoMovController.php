@@ -38,7 +38,11 @@ class BancoMovController extends \BaseController
     {
         $this->layout                = View::make('sistema.movimiento.create');
         $this->layout->title         = 'Movimientos Bancarios';
-        $this->layout->bancos        = DB::table('bancos_list')->orderBy('banco')->lists('banco', 'id');
+        //$this->layout->bancos        = DB::table('bancos_list')->orderBy('banco')->lists('banco', 'id');
+        $this->layout->bancos = DB::table('bancos_list')
+                ->whereNotIn('id', [2,4,6,8])
+                ->orderBy('banco')
+                ->lists('banco', 'id');
         $this->layout->categorias    = BancoCategoria::lists('categoria', 'id');
         $this->layout->subcategorias = BancoSubCategoria::lists('subcategoria', 'id');
         $this->layout->periodo       = DB::table('bancos_periodos')->find(1);

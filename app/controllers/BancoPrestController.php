@@ -23,7 +23,11 @@ class BancoPrestController extends \BaseController //phpcs:ignore
     {
         $this->layout             = View::make('sistema.prestamo.create');
         $this->layout->title      = 'Prestamos';
-        $this->layout->bancos     = DB::table('bancos_list')->lists('banco', 'id');
+        //$this->layout->bancos     = DB::table('bancos_list')->lists('banco', 'id');
+        $this->layout->bancos = DB::table('bancos_list')
+                ->whereNotIn('id', [2,4,6,8])
+                ->orderBy('banco')
+                ->lists('banco', 'id');
         $this->layout->categorias = BancoCategoria::lists('categoria', 'id');
         $this->layout->operadores = DB::table('operadores_list')->orderBy('nombre')->lists('nombre', 'id');
         $admins = Sentry::findGroupByName('AdminsSueldos');
@@ -59,7 +63,11 @@ class BancoPrestController extends \BaseController //phpcs:ignore
     {
         $this->layout             = View::make('sistema.prestamo.window');
         $this->layout->title      = 'Prestamos';
-        $this->layout->bancos     = DB::table('bancos_list')->lists('banco', 'id');
+        //$this->layout->bancos     = DB::table('bancos_list')->lists('banco', 'id');
+        $this->layout->bancos = DB::table('bancos_list')
+                    ->whereNotIn('id', [2,4,6,8])
+                    ->orderBy('banco')
+                    ->lists('banco', 'id');
         $this->layout->categorias = BancoCategoria::lists('categoria', 'id');
         $this->layout->operadores = DB::table('operadores_list')->where('id', Input::get('operador'))->lists('nombre', 'id'); //phpcs:ignore
         $admins = Sentry::findGroupByName('AdminsSueldos');

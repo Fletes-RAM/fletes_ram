@@ -134,9 +134,25 @@ View::composer('sistema.cotizacion.index', function ($view) {
 });
 
 View::composer('sistema.movimiento.index', function ($view) {
-    $view->with('efectivos', Banco::where('banco', 'like', '%Efectivo%')->get())
-         ->with('bancos', Banco::where('banco', 'not like', '%Efectivo%')->get())
-         ->with('periodo', DB::table('bancos_periodos')->find(1));
+    $idsOcultos = [2,4,6,8];
+    
+    $view->with(
+            'efectivos',
+            Banco::where('banco', 'like', '%Efectivo%')
+                ->whereNotIn('id', $idsOcultos)
+                ->get()
+        )
+        ->with(
+            'bancos',
+            Banco::where('banco', 'not like', '%Efectivo%')
+                ->whereNotIn('id', $idsOcultos)
+                ->get()
+        )
+        ->with('periodo', DB::table('bancos_periodos')->find(1));
+    
+    //$view->with('efectivos', Banco::where('banco', 'like', '%Efectivo%')->get())
+    //     ->with('bancos', Banco::where('banco', 'not like', '%Efectivo%')->get())
+    //     ->with('periodo', DB::table('bancos_periodos')->find(1));
 });
 
 View::composer('sistema.asignacion.index', function ($view) {
