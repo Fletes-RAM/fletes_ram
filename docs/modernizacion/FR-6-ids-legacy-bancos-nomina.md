@@ -8,12 +8,12 @@ El código legacy excluye `bancos_id IN (2,4,6,8)` en las pantallas revisadas de
 
 La copia local identifica:
 
-| ID | Nombre legacy | Cuenta legacy |
-| ---: | --- | --- |
-| 2 | BANAMEX | 70012768867 |
-| 4 | INVERSION BANAMEX | 001234 |
-| 6 | TC BANORTE | 4913750002470456 |
-| 8 | FONDOS DE INVERSION BNMX | 904601725 |
+| ID | Nombre legacy |
+| ---: | --- |
+| 2 | BANAMEX |
+| 4 | INVERSION BANAMEX |
+| 6 | TC BANORTE |
+| 8 | FONDOS DE INVERSION BNMX |
 
 ### Conclusión
 
