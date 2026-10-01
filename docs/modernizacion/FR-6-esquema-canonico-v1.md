@@ -1,10 +1,12 @@
 # FR-6 — Esquema canónico de base de datos v1
 
-> Documento de diseño. **No es una migración ejecutable y no modifica producción.**
+> Documento de diseño consolidado. **No es una migración ejecutable y no modifica producción.**
 
-## Objetivo
+## Objetivo y garantía de rescate
 
-Definir el modelo de datos destino de Fletes RAM a partir de la base real auditada, preservando trazabilidad con el legado y evitando convertir accidentes históricos del esquema en reglas permanentes.
+El Fletes RAM modernizado partirá de la información real existente. La base legacy no se reemplaza por una base vacía: FR-7 migrará los datos históricos al esquema moderno mediante un proceso repetible, conciliable y probado sobre copias antes del corte.
+
+La base real auditada es fuente de verdad del legado. Se preservarán IDs legacy durante la transición y se generarán reportes de conciliación. Ninguna anomalía histórica se “arreglará” inventando información.
 
 ## Fuentes de verdad y reglas
 
@@ -131,15 +133,54 @@ La migración debe ser repetible sobre una copia de producción. Ninguna correcc
 
 Un generador de migraciones puede ayudar a producir el baseline desde la copia local, pero su salida se tratará como extracción automática y deberá revisarse; no sustituye este diseño.
 
-## Pendientes de FR-6
+## Bloques canónicos ya caracterizados
 
-- Extraer baseline reproducible desde la copia local y compararlo contra este diseño.
-- Completar el mapa de las 49 tablas y 23 vistas por dominio.
-- Perfilar tipos candidatos a normalización (texto -> decimal, fechas, booleanos/estados).
-- Definir tratamiento de las 52 cargas de combustible huérfanas sin perder trazabilidad.
-- Definir la estrategia moderna para autenticación/roles.
-- Determinar si `asignaciones_especiales` converge con combustible ordinario o permanece separada.
-- Diseñar el bloque siguiente: cotizaciones/facturación y posteriormente bancos, mantenimiento e inventarios.
+Además del núcleo operativo inicial, los documentos FR-6 complementarios ya caracterizan y fijan decisiones para:
+- cotizaciones, facturación, cobranza y proveedores;
+- bancos, periodos, movimientos, préstamos/anticipos y trazabilidad financiera;
+- mantenimiento y pagos de notas;
+- inventarios de materiales/refacciones;
+- llantas;
+- bitácora de unidad;
+- asistencia;
+- sueldos/liquidaciones;
+- foráneos;
+- rendimiento, costos de combustible y diésel autorizado.
+
+Principios consolidados:
+- cobros/pagos y su movimiento financiero deben ser transaccionales;
+- inventario se reconstruye desde movimientos y `valor` no será segunda fuente de verdad;
+- rendimiento real observado es km/l;
+- lectura de odómetro y notas de lectura se separarán;
+- IDs mágicos se sustituyen por configuración/relaciones explícitas;
+- no se inventará seguimiento individual de llantas ni costos históricos inexistentes;
+- `control_id=0`, proveedor/gasolinera 0 y otros sentinelas se normalizan según su semántica confirmada.
+
+## Estrategia de rescate y migración
+
+FR-7 deberá ejecutar de forma repetible:
+1. respaldo íntegro de producción;
+2. extracción a copia de trabajo;
+3. creación del esquema moderno;
+4. importación por dominios preservando IDs/mapeos legacy;
+5. transformación explícita de sentinelas y fechas;
+6. registro de excepciones y huérfanos;
+7. conciliación de conteos, importes, saldos y relaciones;
+8. activación de constraints;
+9. migraciones de ensayo;
+10. ensayo de corte con datos recientes;
+11. respaldo final y migración definitiva sólo tras validación.
+
+La base legacy permanecerá intacta como respaldo y fuente de conciliación durante el proceso.
+
+## Pendientes residuales de FR-6
+
+- cerrar la representación física inicial de tablas y relaciones modernas;
+- registrar la matriz explícita de excepciones que FR-7 deberá conciliar;
+- decidir el tratamiento de vistas/reportes legacy;
+- dejar autenticación/credenciales para FR-8 sin bloquear identidad.
+
+La conciliación fila por fila y los scripts de transformación pertenecen a FR-7.
 
 ## Fuera de alcance de este commit
 
