@@ -7,8 +7,9 @@
 ### Materiales / refacciones
 - 123 artículos.
 - 0 existencias actuales negativas.
-- Para los 123 artículos, la existencia inicial inferida por `existencia_actual - entradas + salidas` es 0.
-- Esto demuestra que, en el estado actual, la existencia almacenada es reconstruible como **entradas - salidas**.
+- En 122 de 123 artículos, la existencia inicial inferida por `existencia_actual - entradas + salidas` es 0.
+- El ID 90 requiere existencia inicial inferida de 10 para reconciliar su historial: existencia actual 0, entradas 10 y salidas 20.
+- Por tanto, el stock moderno debe considerar saldo/movimiento de apertura cuando el historial legacy no parte de cero.
 - 2 artículos tienen discrepancia entre `valor` almacenado y `existencia × precio`.
 - No hay entradas/salidas huérfanas.
 - No hay salidas asociadas a unidades inexistentes.
@@ -17,7 +18,7 @@
 1. ID 7: existencia 7, precio 10.00, valor almacenado 65.00, valor calculado 70.00.
 2. ID 90: existencia actual 0, entradas 10, salidas 20 y valor almacenado -16.90, mientras el valor derivado actual es 0.00.
 
-El ID 90 evidencia que históricamente se permitieron más salidas que entradas. La existencia almacenada actual fue llevada a 0, pero el valor negativo quedó como residuo inconsistente. No se corregirá el legacy silenciosamente.
+El ID 90 evidencia que el historial disponible no parte de saldo cero: su existencia inicial inferida es 10. Además, el valor almacenado negativo no coincide con el estado actual. No se corregirá el legacy silenciosamente.
 
 ### Llantas
 - 62 registros de catálogo.
@@ -31,7 +32,7 @@ El ID 90 evidencia que históricamente se permitieron más salidas que entradas.
 ## Consecuencia para el esquema canónico
 
 ### Inventario
-Los movimientos deben convertirse en la fuente auditable del stock. La existencia puede mantenerse como saldo materializado por rendimiento, pero deberá actualizarse dentro de la misma transacción que el movimiento y ser verificable/reconstruible.
+Los movimientos deben convertirse en la fuente auditable del stock. FR-7 deberá preservar un saldo/movimiento de apertura cuando sea necesario para que apertura + entradas - salidas reconcilie con la existencia actual. La existencia puede mantenerse como saldo materializado por rendimiento, pero deberá actualizarse dentro de la misma transacción que el movimiento y ser verificable/reconstruible.
 
 No se trasladará `valor` como una segunda fuente de verdad. Es derivable y el legacy ya demuestra que puede quedar desincronizado.
 
