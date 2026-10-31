@@ -28,13 +28,34 @@ No se ejecutó Laravel legacy ni Composer. No se conectó producción ni Laragon
 - Las pruebas unitarias detectan contenido distinto con igual conteo, mapeo
   incorrecto, cambio de huella con iguales IDs y fechas inválidas.
 
+## Probado con copia real — catálogo de tipos de unidad
+
+Fecha: 2026-10-30. Código ejecutado: contenido del incremento ebc0e21.
+Origen: exportación aportada `fletesram_labaseram_28_10_26.sql`.
+Se extrajeron exclusivamente CREATE, INSERT, índice y AUTO_INCREMENT de
+`ram_tipos_de_unidades`; no se ejecutó el dump completo ni sus vistas/rutinas.
+Importación en una instancia local desechable MariaDB 11.8.6, PHP 8.4.26.
+Zona de sesión UTC durante importación y lectura. Origen InnoDB con usuario
+SELECT únicamente; usuario destino limitado a los dos esquemas de ensayo.
+
+- Inspección y dry-run correctos; simulación sin tablas creadas en destino.
+- Dos destinos vacíos independientes: 11 origen = 11 destino = 11 mapeos.
+- Ambos runs `passed`; 0 excepciones de fechas; conciliación de campos e IDs.
+- Contenido moderno idéntico entre ensayos; huella del catálogo idéntica.
+- Huella del origen antes/después idéntica; espacio final de nombre conservado.
+- Run A: `de004d79-999e-4223-b999-e64b5f111095`.
+- Run B: `702de2c5-1769-4d6f-833e-8020fba66e82`.
+- SHA-256 del contenido origen según algoritmo fr7:v2:
+  `98061535ff67dd2070b3bf716285afb45015d4522788457024dba7826418a2e2`.
+
+No se incorporaron filas del respaldo, credenciales ni el dump al repositorio.
+No se requirieron cambios en el migrador para completar este ensayo real.
+
 ## Pendiente de validación
 
-No probado todavía en MySQL 8.4 de Laragon ni con registros reales de
-`fletes_ram_local`. Los resultados anteriores no certifican la migración de la
-BD real ni el resto de dominios. La huella cubre sólo ram_tipos_de_unidades.
+MySQL 8.4 de Laragon continúa pendiente. La copia real validada cubre solamente
+`ram_tipos_de_unidades`; no certifica toda la BD ni los demás dominios.
+Este catálogo real no contiene fechas inválidas ni borrados lógicos; esos casos
+siguen cubiertos con fixtures sintéticos, no con evidencia real de este dump.
 No se simularon caída abrupta durante COMMIT, fallo del servidor durante rollback
-ni contención entre procesos simultáneos.
-
-Para el ensayo real se necesita acceso a una copia local o una exportación del
-catálogo. FR-6 permanece cerrado; FR-7 continúa en curso.
+ni contención entre procesos simultáneos. FR-6 permanece cerrado; FR-7 en curso.
