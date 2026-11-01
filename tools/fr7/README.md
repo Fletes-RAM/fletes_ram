@@ -76,3 +76,33 @@ shell. La prueba crea `fr7_source_test`, `fr7_a_test`, `fr7_b_test`,
 no elimina bases. No utilizar tu instancia habitual para esta prueba.
 
 Evidencia de ejecución y límites: `tests/RESULTS.md`.
+
+## Núcleo operativo 0.3
+
+`php tools/fr7/migrate.php --inspect --core`
+`php tools/fr7/migrate.php --dry-run --core`
+`php tools/fr7/migrate.php --execute --core`
+
+Ejecutar en un destino nuevo: el perfil core migra juntos clientes, tipos,
+unidades y operadores dentro de la misma transacción. No se añade a un destino
+que ya tenga el catálogo migrado. Se conservan IDs reales y legacy; se concilian
+campos, mapeos y padres resueltos. No hay FK destructivas.
+
+Porcentaje de administración: decimal exacto (14,4), sin floats ni inferencias
+de separadores; se conserva además el texto original. Valores ambiguos/no
+representables quedan con decimal NULL y excepción DECIMAL_TEXT_PRESERVED.
+Los campos documentales y contactos conservan su contenido sin normalizaciones.
+Fechas inválidas: NULL más excepción; un borrado inválido sigue inactivo.
+Referencias 0 de operador: NULL con excepción; referencias sin padre: NULL,
+ID original en columna legacy y excepción histórica. Ninguna fila se descarta.
+
+`operators.legacy_user_id` conserva la identidad del usuario legacy, comprobada
+contra `ram_users.id` (sólo se lee esa columna). No migra credenciales ni afirma
+que autenticación/roles modernos estén resueltos: pertenecen a FR-8.
+Las relaciones de unidad/cliente del operador se conservan como estado actual,
+sin inventar un historial de asignaciones. FK físicas adicionales quedan para
+la fase de activación de constraints, después de conciliación transversal.
+
+Pruebas nuevas: `php tools/fr7/tests/core-unit.php` y
+`php tools/fr7/tests/core-integration.php` (misma configuración sintética;
+requiere servidor desechable sin los esquemas enumerados en el test).

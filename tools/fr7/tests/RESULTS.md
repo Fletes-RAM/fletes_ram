@@ -59,3 +59,37 @@ Este catálogo real no contiene fechas inválidas ni borrados lógicos; esos cas
 siguen cubiertos con fixtures sintéticos, no con evidencia real de este dump.
 No se simularon caída abrupta durante COMMIT, fallo del servidor durante rollback
 ni contención entre procesos simultáneos. FR-6 permanece cerrado; FR-7 en curso.
+
+## Núcleo operativo 0.3 — 2026-11-01
+
+Implementado perfil --core: clients, vehicle_types, vehicles y operators;
+IDs preservados, relaciones verificadas, auditoría por dominio, transacción
+compartida y huella de las cuatro tablas completas más ram_users.id.
+
+Pruebas sintéticas: 26 comprobaciones unitarias nuevas y 30 de integración.
+Además siguen pasando las 22 unitarias y 25 de integración anteriores.
+Se prueban IDs dispersos, referencias huérfanas, centinelas, porcentajes
+ambiguos, fecha de baja inválida sin reactivación y permiso SELECT del origen.
+Un fallo provocado en el último dominio revierte las cuatro tablas, mapeos y
+excepciones; run failed con etapa sanitizada. Dos destinos producen lo mismo.
+
+Copia real aportada, PHP 8.4.26 / MariaDB 11.8.6, sesiones UTC:
+
+| Tabla destino | Origen | Destino | Mapeos | Excepciones |
+|---|---:|---:|---:|---:|
+| clients | 58 | 58 | 58 | 3 |
+| vehicle_types | 11 | 11 | 11 | 0 |
+| vehicles | 49 | 49 | 49 | 0 |
+| operators | 166 | 166 | 166 | 152 |
+
+Dos ensayos passed, con igualdad de contenido y de huella. Dry-run sin DDL.
+Excepciones: 3 porcentajes no convertibles conservados como texto, 3 fechas
+inválidas de operadores a NULL y 149 referencias 0 normalizadas a NULL.
+Sin referencias huérfanas en estas cuatro tablas de esta copia.
+Runs: 5d6b8d0f-26d8-4658-ab35-2b371df00426 y
+98421f0d-dab9-4e85-9038-3251fb35d101.
+Huella core: b7b2108ffb4d7e5b3a8ad180849949dc8c560efba2ced5e0a2b40af1ec89f6e6.
+No se incorporan filas reales, credenciales ni dumps al repositorio.
+
+Este perfil no cubre todavía rutas/cotizaciones/asignaciones/combustible,
+ni migra usuarios modernos. MySQL 8.4 permanece pendiente de validación.
