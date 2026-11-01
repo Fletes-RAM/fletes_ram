@@ -158,3 +158,16 @@ para digerir tablas por cursor en vez de retener dos copias de las cargas.
 Pendiente: MySQL 8.4 real, tabla normalizada de adjuntos/archivos físicos,
 activación transversal de FK y los dominios posteriores de FR-7.
 No se ha certificado equivalencia funcional de FR-9 ni un corte de producción.
+
+## Punto de intervención — MySQL 8.4
+
+Preparados tests/mysql84.php y tests/verify-mysql84.ps1 para la ejecución local
+pendiente. PHP lint correcto; guardia probada en MariaDB: rechazo por versión,
+con inventario de esquemas idéntico antes/después. El launcher PowerShell está
+pendiente de ejecución en Windows. No se contabiliza este preparativo como
+pruebas aprobadas en MySQL 8.4 ni se añade al total de 148 controles anteriores.
+
+El verificador ejecutará 64 controles sintéticos de integración sobre nueve
+esquemas temporales nuevos, sin usar fletes_ram_local ni el dump real. Esta
+comprobación necesita acceso al MySQL 8.4 de Laragon, no disponible desde el
+entorno del agente. El ensayo real en MariaDB permanece válido y separado.

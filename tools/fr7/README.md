@@ -160,3 +160,23 @@ Pruebas adicionales:
 
 Las integraciones operations/fuel incluyen las comprobaciones core; ejecutarlas
 cada una en un servidor desechable nuevo. Requieren el baseline versionado.
+
+## Verificación pendiente en MySQL 8.4 de Laragon
+
+`tests/verify-mysql84.ps1` usa tu repositorio existente sólo para fetch y crea
+un checkout temporal separado. Detecta el PHP 8.4 instalado; pide puerto,
+usuario y contraseña local (oculta). No hace checkout/pull/merge en tu rama.
+La contraseña vive sólo en el entorno del proceso y se restaura al terminar.
+
+El runner `tests/mysql84.php` requiere MySQL 8.4 real y ejecuta 64 comprobaciones
+sintéticas de integración (core + operación + combustible). No importa el dump.
+Exige que no existan sus nueve esquemas fr7_*_test ni su usuario de fixtures;
+si encuentra uno, se detiene sin borrarlo. Después limpia exclusivamente los
+esquemas/usuario que esta ejecución pudo crear y libera su bloqueo.
+No usa fletes_ram_local ni tablas productivas. Necesita una cuenta local con
+permisos de crear los esquemas y el usuario temporal de SELECT.
+
+El runner PHP tiene sintaxis validada y se comprobó que rechaza MariaDB antes
+de crear/eliminar esquemas. El launcher PowerShell no se ha ejecutado en este
+entorno Linux. La compatibilidad MySQL 8.4 sólo quedará validada al ejecutar
+este bloque en ese motor; preparar el script no constituye un resultado PASSED.
