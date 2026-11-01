@@ -106,3 +106,57 @@ la fase de activación de constraints, después de conciliación transversal.
 Pruebas nuevas: `php tools/fr7/tests/core-unit.php` y
 `php tools/fr7/tests/core-integration.php` (misma configuración sintética;
 requiere servidor desechable sin los esquemas enumerados en el test).
+
+## Rutas y combustible 0.5
+
+Los perfiles son acumulativos y siempre parten de otro destino vacío:
+
+- `php tools/fr7/migrate.php --execute --operations`: core + rutas, segmentos,
+  parámetros de rendimiento, cotizaciones, asignaciones y gasolineras.
+- `php tools/fr7/migrate.php --execute --fuel`: operations + cargas ordinarias
+  y especiales. Ambos admiten también `--inspect` y `--dry-run`.
+
+El perfil fuel exige una **copia de origen ya restaurada, aislada y congelada
+con tablas InnoDB**. Las tablas de combustible del dump aportado son MyISAM:
+la preparación del ensayo restauró su DDL como InnoDB en otra instancia
+DESECHABLE, antes de dar acceso SELECT al migrador. No se convierte el motor
+en producción ni en el legacy habitual de Laragon. El migrador rechaza MyISAM;
+no afirma que REPEATABLE READ proteja tablas no transaccionales.
+
+Rutas: los kilómetros textuales tienen decimal nullable más texto original.
+Cotizaciones: se conservan importes históricos, sin volver a ejecutar fórmulas;
+se comprueban importes fila por fila y SUM exacto por cada columna monetaria.
+DOUBLE legacy se lee como CHAR desde SQL y se transforma sin aritmética float.
+Un cambio no revisado en las columnas del origen bloquea los perfiles ampliados.
+
+Las dos tablas de combustible confluyen en fuel_loads, distinguidas por
+legacy_source (assignment/special) + legacy_id. ID moderno determinista:
+ordinary = 2 * ID legacy; special = 2 * ID legacy + 1. No colisionan IDs iguales
+entre tablas; migration_id_map guarda el enlace exacto. La reconciliación y
+los totales se separan por contexto, sin mezclar cantidades.
+
+- Gasolinera 0: NULL + is_other_fuel_station=1 + ID original + excepción.
+- Asignación/unidad sin padre: NULL + ID original + excepción histórica.
+- Carga especial: assignment_id NULL; conserva unidad y usuario legacy.
+- Fechas cero/imposibles y fechas de negocio <=1900: NULL, valor original de
+  fecha de negocio/pago y excepción. No se infieren desde fotos/timestamps.
+- Litros cero: conservar y registrar excepción; nunca dividir entre cero.
+- Precio, litros, total, odómetro y rendimiento se conservan; no se recalculan.
+- Los cuatro campos de evidencia preservan rutas. No se copian ni se validan
+  archivos físicos de upl/. La tabla separada de adjuntos queda pendiente.
+- factura_proveedor/dias_credito/fecha_limite_pago se preservan; no se inventa
+  todavía una factura/pago moderno ni su movimiento bancario.
+
+Conciliación de destino con cursor no bufferizado y comparación por fila/mapa;
+se libera la copia de filas fuente tras transformar y calcular su huella.
+La lectura/transformación fuente continúa en memoria: el éxito con este bloque
+no garantiza memoria suficiente para migrar toda la BD de una vez.
+Un cierre abrupto puede dejar un run running: sólo passed certifica el ensayo.
+
+Pruebas adicionales:
+`php tools/fr7/tests/operations-integration.php`
+`php tools/fr7/tests/fuel-unit.php`
+`php tools/fr7/tests/fuel-integration.php`
+
+Las integraciones operations/fuel incluyen las comprobaciones core; ejecutarlas
+cada una en un servidor desechable nuevo. Requieren el baseline versionado.

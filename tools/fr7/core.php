@@ -75,3 +75,18 @@ function coreFingerprint(array $domains): string {
     }
     return hash_final($ctx);
 }
+function declaredSourceColumns(string $table,array $definition):array {
+    if($table==='ram_tipos_de_unidades')return ['id','tipo_de_unidad','porcentaje','observaciones','deleted_at','created_at','updated_at'];
+    $columns=array_merge(['id','created_at','updated_at'],array_keys($definition['fields']),array_keys($definition['decimal_text']??[]),array_keys($definition['money']??[]),array_keys($definition['relations']??[]));
+    $extra=match($table){
+        'ram_clientes'=>['gasto_admon','deleted_at'],
+        'ram_unidades'=>['tipo_de_unidad_id','vigencia','km_inicial','deleted_at'],
+        'ram_operadores'=>['user_id','vigencia','medica','unidad_id','cliente_id','deleted_at'],
+        'ram_nombres_rutas','ram_detalles_rutas','ram_cotizaciones','ram_gasolineras'=>['deleted_at'],
+        'ram_asignaciones'=>['user_id'],
+        'ram_asignaciones_combustibles'=>['fecha','fecha_limite_pago'],
+        'ram_asignaciones_especiales'=>['fecha','fecha_limite_pago','user_id'],
+        default=>[]
+    };
+    return array_values(array_unique(array_merge($columns,$extra)));
+}

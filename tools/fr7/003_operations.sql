@@ -1,0 +1,47 @@
+CREATE TABLE IF NOT EXISTS routes (
+ id BIGINT UNSIGNED PRIMARY KEY, legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+ name VARCHAR(200) NOT NULL, notes TEXT NOT NULL,
+ total_kilometers DECIMAL(18,4) NULL, legacy_total_kilometers VARCHAR(10) NOT NULL,
+ created_at DATETIME NULL,updated_at DATETIME NULL,deleted_at DATETIME NULL,is_active TINYINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS route_segments (
+ id BIGINT UNSIGNED PRIMARY KEY,legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+ route_id BIGINT UNSIGNED NULL,legacy_route_id BIGINT UNSIGNED NOT NULL,
+ origin_state VARCHAR(200) NOT NULL,origin VARCHAR(200) NOT NULL,
+ destination_state VARCHAR(200) NOT NULL,destination VARCHAR(200) NOT NULL,
+ kilometers DECIMAL(18,4) NULL,legacy_kilometers VARCHAR(10) NOT NULL,
+ created_at DATETIME NULL,updated_at DATETIME NULL,deleted_at DATETIME NULL,is_active TINYINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS fuel_efficiency_parameters (
+ id BIGINT UNSIGNED PRIMARY KEY,legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+ vehicle_type_id BIGINT UNSIGNED NULL,legacy_vehicle_type_id BIGINT UNSIGNED NOT NULL,
+ kilometers_per_liter DECIMAL(18,4) NULL,legacy_kilometers_per_liter VARCHAR(10) NOT NULL,
+ created_at DATETIME NULL,updated_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS quotations (
+ id BIGINT UNSIGNED PRIMARY KEY,legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+ reference VARCHAR(20) NOT NULL,notes TEXT NOT NULL,
+ client_id BIGINT UNSIGNED NULL,legacy_client_id BIGINT UNSIGNED NOT NULL,
+ route_id BIGINT UNSIGNED NULL,legacy_route_id BIGINT UNSIGNED NOT NULL,
+ vehicle_type_id BIGINT UNSIGNED NULL,legacy_vehicle_type_id BIGINT UNSIGNED NOT NULL,
+ fuel_efficiency_parameter_id BIGINT UNSIGNED NULL,legacy_fuel_efficiency_parameter_id BIGINT UNSIGNED NOT NULL,
+ total_kilometers DECIMAL(18,4) NULL,legacy_total_kilometers VARCHAR(10) NOT NULL,
+ fuel_unit_cost DECIMAL(15,2) NOT NULL,proposed_amount DECIMAL(15,2) NOT NULL,
+ profit DECIMAL(15,2) NOT NULL,operator_pay DECIMAL(15,2) NOT NULL,
+ administrative_expenses DECIMAL(15,2) NOT NULL,other_expenses DECIMAL(15,2) NOT NULL,
+ fuel_amount DECIMAL(15,2) NOT NULL,toll_amount DECIMAL(15,2) NOT NULL,
+ created_at DATETIME NULL,updated_at DATETIME NULL,deleted_at DATETIME NULL,is_active TINYINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS assignments (
+ id BIGINT UNSIGNED PRIMARY KEY,legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+ quotation_id BIGINT UNSIGNED NULL,legacy_quotation_id BIGINT UNSIGNED NOT NULL,
+ vehicle_id BIGINT UNSIGNED NULL,legacy_vehicle_id BIGINT UNSIGNED NOT NULL,
+ legacy_user_id BIGINT UNSIGNED NOT NULL,legacy_status VARCHAR(15) NOT NULL,
+ created_at DATETIME NULL,updated_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS fuel_stations (
+ id BIGINT UNSIGNED PRIMARY KEY,legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+ name VARCHAR(200) NOT NULL,station VARCHAR(255) NOT NULL,contact_name VARCHAR(200) NOT NULL,
+ email VARCHAR(200) NOT NULL,phone VARCHAR(15) NOT NULL,notes TEXT NOT NULL,
+ created_at DATETIME NULL,updated_at DATETIME NULL,deleted_at DATETIME NULL,is_active TINYINT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

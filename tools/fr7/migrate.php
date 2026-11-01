@@ -91,12 +91,38 @@ function reconcile(array $expected, array $actual, array $maps): bool {
     }
     return true;
 }
+function reconcileStoredDomain(PDO $target,array $expected,string $table,array $definition,string $runId): bool {
+    $dest=$definition['target'];$scope=fuelScope($definition);
+    $q=$target->prepare('SELECT COUNT(*) FROM migration_id_map WHERE migration_run_id=? AND source_table=? AND target_table=?');$q->execute([$runId,$table,$dest]);
+    if((int)$q->fetchColumn()!==count($expected))return false;
+    $where=$scope==='' ? '' : str_replace('legacy_source','a.legacy_source',$scope);
+    $sql='SELECT a.*,m.source_id AS __map_source,m.target_id AS __map_target FROM `'.$dest.'` a LEFT JOIN migration_id_map m ON m.migration_run_id=? AND m.source_table=? AND m.target_table=? AND m.source_id=CAST(a.legacy_id AS CHAR)'.$where.' ORDER BY a.legacy_id';
+    $target->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY,false);
+    $cursor=null;
+    try {
+        $cursor=$target->prepare($sql);$cursor->execute([$runId,$table,$dest]);
+        foreach($expected as $row){
+            $actual=$cursor->fetch();
+            if($actual===false || (string)$actual['__map_source']!==(string)$row['legacy_id'] || (string)$actual['__map_target']!==(string)$actual['id'])return false;
+            foreach($row as $column=>$value){$got=$actual[$column];if($value===null ? $got!==null : ($got===null || (string)$got!==(string)$value))return false;}
+        }
+        return $cursor->fetch()===false;
+    } finally {
+        if($cursor!==null)$cursor->closeCursor();
+        $target->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY,true);
+    }
+}
+
 require_once __DIR__.'/core.php';
+require_once __DIR__.'/operations.php';
+require_once __DIR__.'/fuel.php';
 
 function main(array $argv): int {
     $source = $target = null; $runId = null; $locked = false; $stage = 'preflight';
     try {
-        $core = count($argv) === 3 && $argv[2] === '--core';
+        $fuel = count($argv) === 3 && $argv[2] === '--fuel';
+        $operations = $fuel || (count($argv) === 3 && $argv[2] === '--operations');
+        $core = $operations || (count($argv) === 3 && $argv[2] === '--core');
         if ($core) array_pop($argv);
         if (count($argv) !== 2 || !in_array($argv[1], ['--inspect','--dry-run','--execute'], true)) throw new RuntimeException('MODE_REQUIRED');
         $mode = $argv[1];
@@ -113,7 +139,7 @@ function main(array $argv): int {
         }
         $source->exec("SET time_zone = '+00:00'"); $target->exec("SET time_zone = '+00:00'");
         $target->exec("SET SESSION sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
-        $definitions = $core ? coreDefinitions() : ['ram_tipos_de_unidades'=>['target'=>'vehicle_types']];
+        $definitions = $fuel ? fuelDefinitions() : ($operations ? operationDefinitions() : ($core ? coreDefinitions() : ['ram_tipos_de_unidades'=>['target'=>'vehicle_types']]));
         $sourceTables = array_keys($definitions);
         if ($core) $sourceTables[]='ram_users'; // identity references only, never credentials
         foreach ($sourceTables as $table) {
@@ -125,13 +151,23 @@ function main(array $argv): int {
         $allRows=[]; $parents=[]; $expectedByTable=[]; $exceptions=[]; $transformed=[];
         foreach ($sourceTables as $table) {
             $columns=$table==='ram_users' ? 'id' : '*';
+            if ($table==='ram_unidades') $columns .= ',CAST(km_inicial AS CHAR) AS km_inicial';
+            foreach ($definitions[$table]['money']??[] as $column=>$unused) $columns .= ',CAST(`'.$column.'` AS CHAR) AS `'.$column.'`';
             $allRows[$table]=$source->query('SELECT '.$columns.' FROM `'.$table.'` ORDER BY id')->fetchAll();
             $parents[$table]=array_fill_keys(array_map(fn($r)=>(string)$r['id'],$allRows[$table]),true);
         }
         foreach ($definitions as $table=>$definition) {
+            // An unreviewed schema change must not silently drop legacy columns.
+            if ($core) {
+                $q=$source->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?');$q->execute([$table]);
+                $columns=$q->fetchAll(PDO::FETCH_COLUMN);$declared=declaredSourceColumns($table,$definition);
+                if (array_diff($columns,$declared)!==[] || array_diff($declared,$columns)!==[]) throw new RuntimeException('SOURCE_SCHEMA_UNREVIEWED');
+            }
             $expectedByTable[$table]=[];
             foreach ($allRows[$table] as $row) {
-                if ($core) [$values,$items]=coreTransform($table,$row,$parents);
+                if ($fuel) [$values,$items]=fuelTransform($table,$row,$parents);
+                elseif ($operations) [$values,$items]=operationTransform($table,$row,$parents);
+                elseif ($core) [$values,$items]=coreTransform($table,$row,$parents);
                 else { [$values,$fields]=transformVehicleType($row); $items=array_map(fn($f)=>['code'=>'INVALID_DATE_TO_NULL','field'=>$f],$fields); }
                 $expectedByTable[$table][]=$values;
                 $transformed[$table][(string)$row['id']]=$items!==[];
@@ -140,6 +176,8 @@ function main(array $argv): int {
         }
         $hash=$core ? coreFingerprint($allRows) : fingerprint($allRows['ram_tipos_de_unidades']);
         $totalRows=array_sum(array_map('count',$expectedByTable));
+        $sourceCounts=array_map('count',$allRows);
+        unset($allRows); // rows have been fingerprinted and transformed; do not retain a second copy
         if ($mode === '--dry-run') {
             $source->commit();
             echo json_encode(['mode'=>'dry-run','source'=>$totalRows,'exceptions'=>count($exceptions),'fingerprint'=>$hash], JSON_THROW_ON_ERROR).PHP_EOL;
@@ -151,7 +189,7 @@ function main(array $argv): int {
         $locked = true;
         if ((int)$target->query('SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=DATABASE()')->fetchColumn() !== 0) throw new RuntimeException('TARGET_TRIGGERS_FORBIDDEN');
         $tables = $target->query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()')->fetchAll(PDO::FETCH_COLUMN);
-        $allowed = array_merge(['migration_runs','migration_id_map','migration_exceptions'],array_column($definitions,'target'));
+        $allowed = array_merge(['migration_runs','migration_id_map','migration_exceptions'],array_values(array_unique(array_column($definitions,'target'))));
         foreach ($tables as $table) {
             if (!in_array($table, $allowed, true)) throw new RuntimeException('UNEXPECTED_TARGET_TABLE');
             if ($table !== 'migration_runs' && (int)$target->query('SELECT COUNT(*) FROM `'.$table.'`')->fetchColumn() !== 0) throw new RuntimeException('TARGET_NOT_EMPTY');
@@ -163,6 +201,16 @@ function main(array $argv): int {
             $coreSql=file_get_contents(__DIR__.'/002_core.sql');
             if ($coreSql===false) throw new RuntimeException('BOOTSTRAP_UNREADABLE');
             $sql .= $coreSql;
+            if ($operations) {
+                $operationSql=file_get_contents(__DIR__.'/003_operations.sql');
+                if ($operationSql===false) throw new RuntimeException('BOOTSTRAP_UNREADABLE');
+                $sql .= $operationSql;
+                if ($fuel) {
+                    $fuelSql=file_get_contents(__DIR__.'/004_fuel.sql');
+                    if ($fuelSql===false) throw new RuntimeException('BOOTSTRAP_UNREADABLE');
+                    $sql .= $fuelSql;
+                }
+            }
         }
         // This controlled file contains simple CREATE TABLE statements only.
         foreach (explode(';', $sql) as $statement) if (trim($statement) !== '') $target->exec($statement);
@@ -171,7 +219,7 @@ function main(array $argv): int {
             if ($q->fetchColumn() !== 'InnoDB') throw new RuntimeException('TARGET_ENGINE_UNSUPPORTED');
         }
         $uuid = uuidv4();
-        $target->prepare('INSERT INTO migration_runs (uuid,source_fingerprint,source_label,started_at,status,migrator_version) VALUES (?,?,?,NOW(),?,?)')->execute([$uuid,$hash,$core ? 'local-core' : 'local-vehicle-types','running',$core ? 'fr7-v0.3' : 'fr7-v0.2']);
+        $target->prepare('INSERT INTO migration_runs (uuid,source_fingerprint,source_label,started_at,status,migrator_version) VALUES (?,?,?,NOW(),?,?)')->execute([$uuid,$hash,$fuel ? 'local-fuel' : ($operations ? 'local-operations' : ($core ? 'local-core' : 'local-vehicle-types')),'running',$fuel ? 'fr7-v0.5' : ($operations ? 'fr7-v0.4' : ($core ? 'fr7-v0.3' : 'fr7-v0.2'))]);
         $runId = (string)$target->lastInsertId();
         $stage = 'migration'; $target->beginTransaction();
         $map=$target->prepare("INSERT INTO migration_id_map (migration_run_id,domain,source_table,source_id,target_table,target_id,action) VALUES (?,'operation',?,?,?,?,?)");
@@ -187,20 +235,29 @@ function main(array $argv): int {
         }
         $exception=$target->prepare("INSERT INTO migration_exceptions (migration_run_id,domain,source_table,source_id,code,severity,resolution,status,target_table,target_id) VALUES (?,'operation',?,?,?,'warning',?,?,?,?)");
         foreach ($exceptions as $item) {
-            $q=$target->prepare('SELECT id FROM `'.$item['target_table'].'` WHERE legacy_id=?');$q->execute([$item['source_id']]);
-            $preserved=in_array($item['code'],['DECIMAL_TEXT_PRESERVED','ORPHAN_REFERENCE_PRESERVED','ORPHAN_USER_REFERENCE'],true);
+            $scope=fuelScope($definitions[$item['source_table']]);
+            $q=$target->prepare('SELECT id FROM `'.$item['target_table'].'`'.($scope===''?' WHERE ':$scope.' AND ').'legacy_id=?');$q->execute([$item['source_id']]);
+            $preserved=in_array($item['code'],['DECIMAL_TEXT_PRESERVED','ORPHAN_REFERENCE_PRESERVED','ORPHAN_USER_REFERENCE','ZERO_LITERS_PRESERVED'],true);
             $exception->execute([$runId,$item['source_table'],$item['source_id'],$item['code'],$item['field'].': '.$item['code'],$preserved?'preserved':'transformed',$item['target_table'],$q->fetchColumn()]);
         }
         $stage = 'reconciliation'; $metrics=[];
         foreach ($definitions as $table=>$definition) {
-            $dest=$definition['target'];$actual=$target->query('SELECT * FROM `'.$dest.'` ORDER BY legacy_id')->fetchAll();
-            $q=$target->prepare('SELECT source_id,target_id FROM migration_id_map WHERE migration_run_id=? AND source_table=? AND target_table=?');$q->execute([$runId,$table,$dest]);
-            $maps=$q->fetchAll();
-            if (!reconcile($expectedByTable[$table],$actual,$maps)) throw new RuntimeException('CONTENT_RECONCILIATION_FAILED');
-            $metrics[$dest]=['source'=>count($allRows[$table]),'target'=>count($actual),'mapped'=>count($maps),'exceptions'=>count(array_filter($exceptions,fn($e)=>$e['source_table']===$table)),'content_equal'=>true];
+            $dest=$definition['target'];$scope=fuelScope($definition);
+            if (!reconcileStoredDomain($target,$expectedByTable[$table],$table,$definition,$runId)) throw new RuntimeException('CONTENT_RECONCILIATION_FAILED');
+            $verifiedCount=count($expectedByTable[$table]);
+            $metricKey=isset($definition['scope']) ? $dest.'.'.$definition['scope'] : $dest;
+            $metrics[$metricKey]=['source'=>$sourceCounts[$table],'target'=>$verifiedCount,'mapped'=>$verifiedCount,'exceptions'=>count(array_filter($exceptions,fn($e)=>$e['source_table']===$table)),'content_equal'=>true];
+            foreach ($definition['money']??[] as $column=>$targetColumn) {
+                $sourceTotal=$source->query('SELECT CAST(COALESCE(SUM(CAST(`'.$column.'` AS DECIMAL(30,2))),0) AS DECIMAL(40,2)) FROM `'.$table.'`')->fetchColumn();
+                $targetTotal=$target->query('SELECT CAST(COALESCE(SUM(`'.$targetColumn.'`),0) AS DECIMAL(40,2)) FROM `'.$dest.'`'.$scope)->fetchColumn();
+                if ((string)$sourceTotal!==(string)$targetTotal) throw new RuntimeException('AMOUNT_RECONCILIATION_FAILED');
+                $metrics[$metricKey]['amount_totals'][$targetColumn]=(string)$targetTotal;
+            }
+
         }
+        unset($expectedByTable);
         // Verify the resolved parents exist in the actual destination, not only in source.
-        if ($core) foreach ([['vehicles','vehicle_type_id','vehicle_types'],['operators','vehicle_id','vehicles'],['operators','client_id','clients']] as [$child,$column,$parent]) {
+        if ($core) foreach (($fuel ? fuelRelations() : ($operations ? operationRelations() : [['vehicles','vehicle_type_id','vehicle_types'],['operators','vehicle_id','vehicles'],['operators','client_id','clients']])) as [$child,$column,$parent]) {
             if ((int)$target->query('SELECT COUNT(*) FROM `'.$child.'` c LEFT JOIN `'.$parent.'` p ON p.id=c.`'.$column.'` WHERE c.`'.$column.'` IS NOT NULL AND p.id IS NULL')->fetchColumn()!==0) throw new RuntimeException('RELATION_RECONCILIATION_FAILED');
         }
         $metrics=json_encode($metrics,JSON_THROW_ON_ERROR);

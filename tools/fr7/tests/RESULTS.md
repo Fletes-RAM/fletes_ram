@@ -93,3 +93,68 @@ No se incorporan filas reales, credenciales ni dumps al repositorio.
 
 Este perfil no cubre todavía rutas/cotizaciones/asignaciones/combustible,
 ni migra usuarios modernos. MySQL 8.4 permanece pendiente de validación.
+
+## Operación y combustible 0.5 — 2026-11-01
+
+Pruebas sintéticas acumuladas: 148 comprobaciones distintas:
+22 unitarias catálogo, 26 unitarias core, 11 unitarias combustible,
+25 integración catálogo, 30 integración core, 14 adicionales operación,
+20 adicionales combustible. Las suites acumulativas repiten core como
+preparación: esas repeticiones no se suman a 148.
+
+Se comprueba colisión de igual ID legacy entre ambos tipos de combustible,
+separación de mapas/excepciones/totales por contexto, asignación huérfana,
+Otros, fecha 1899, litros cero sin división, preservación de total aunque no
+sea litros*precio, rutas de fotos y detección de corrupción de contenido/mapa
+con igual conteo usando la conciliación con cursor realmente ejecutada.
+MyISAM en origen se rechaza antes de DDL. Rollback conjunto continúa probado.
+
+Copia real del dump aportado, restaurada en instancia aislada y desechable.
+Las dos tablas MyISAM se crean como InnoDB durante esa restauración previa;
+después el migrador sólo tiene SELECT sobre el origen. Usuarios destino
+limitados a dos esquemas independientes. PHP 8.4.26 / MariaDB 11.8.6 / UTC.
+
+| Dominio | Origen = destino = mapeos, por ensayo |
+|---|---:|
+| Clientes | 58 |
+| Tipos de unidad | 11 |
+| Unidades | 49 |
+| Operadores | 166 |
+| Rutas | 801 |
+| Segmentos | 1,448 |
+| Parámetros de rendimiento | 45 |
+| Cotizaciones | 2,157 |
+| Asignaciones | 1,141 |
+| Gasolineras | 27 |
+| Cargas ordinarias | 1,326 |
+| Cargas especiales | 24,048 |
+| **Total** | **31,277** |
+
+Dos ensayos passed con igualdad de todas las filas destino (digest por tabla),
+misma huella y SUM exactos iguales a origen para las columnas numéricas de
+cotizaciones/cargas. Se verificó la huella de todas las tablas fuente antes y
+después: sin cambios. Inspección/dry-run sin tablas creadas en destino.
+Runs: b65b2ba8-50c1-4481-a8d7-aecedd5fc906 y
+e987dd08-ae9e-4b1d-bbc6-605f28590a9e.
+Huella: 6022e88988bc80d0b7979b964bed21892a68cbf0fbfa1b1c050c1822bd322f29.
+
+1,777 excepciones por ensayo:
+- 52 cargas ordinarias sin asignación padre, preservadas.
+- Gasolinera Otra: 254 ordinarias y 1,305 especiales.
+- Fechas inválidas: 6 ordinarias, 3 especiales y 3 operadores.
+- Referencias 0 de operadores: 149.
+- Texto decimal no convertible: 3 clientes y 2 segmentos, original conservado.
+
+La copia nueva contiene 24,048 cargas especiales y 1,305 Otras; la auditoría
+anterior registraba 23,830 y 1,296. Se migra el dump actual completo, sin
+recortar para forzar coincidencia con los conteos históricos.
+
+Un intento previo agotó el límite 128 MiB en la conciliación bufferizada; no
+se cuenta como passed. Se sustituyó por cursor no bufferizado y se liberaron
+filas fuente después de transformarlas. Los dos ensayos finales pasaron con
+el límite PHP de 128 MiB. También se corrigió el harness de comparación real
+para digerir tablas por cursor en vez de retener dos copias de las cargas.
+
+Pendiente: MySQL 8.4 real, tabla normalizada de adjuntos/archivos físicos,
+activación transversal de FK y los dominios posteriores de FR-7.
+No se ha certificado equivalencia funcional de FR-9 ni un corte de producción.
