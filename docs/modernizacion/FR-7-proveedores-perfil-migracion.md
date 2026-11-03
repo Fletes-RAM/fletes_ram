@@ -72,3 +72,32 @@ Hasta contar con esa definición, no se publicará como definitiva una regla que
 convierta los importes diferentes bajo un mismo folio en facturas separadas,
 abonos o duplicados. La consulta al usuario es de semántica de negocio, no una
 solicitud de permiso para tocar producción.
+
+
+## Mejora solicitada: pagos parciales a proveedores (2026-11-03)
+
+El usuario solicita incorporar parcialidades al sistema modernizado. Se añade
+al alcance funcional de FR-9; FR-7 debe preparar la relación 1:N entre factura
+y pagos sin inventar un historial de abonos a partir de los datos legacy.
+
+Criterios funcionales:
+- Cada factura conserva un total propio y admite varios pagos.
+- Cada pago registra importe, fecha, cuenta/banco, referencia y observaciones.
+- Saldo = total de factura menos suma de pagos vigentes; se calcula con
+  decimales exactos y estados pendiente, parcialmente pagada o pagada.
+- El abono debe ser positivo y no exceder el saldo; la validación debe ser
+  atómica ante pagos concurrentes.
+- Cada abono genera su propio egreso bancario en la misma transacción.
+  Una solicitud repetida no duplica el pago ni el movimiento.
+- Una reversión conserva auditoría y vuelve a reflejarse en el saldo;
+  no se borra silenciosamente el historial financiero.
+- Ejemplo de aceptación: factura 1,000; pagos 300 y 400 dejan saldo 300 y
+  estado parcial; pago final 300 deja saldo 0 y estado pagada.
+- Probar también rechazo de sobrepago/importe no positivo, concurrencia,
+  repetición de solicitud y rollback conjunto de pago/movimiento.
+
+Esta solicitud define la mejora futura. No confirma que el legacy ya registrara
+abonos: las 50 combinaciones con importes distintos y demás ambigüedades siguen
+como evidencia histórica pendiente, sin reinterpretación automática.
+Estado de esta entrega: requisito/documentación registrados, no funcionalidad
+implementada ni probada en la aplicación. Producción permanece intacta.
