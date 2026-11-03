@@ -357,3 +357,7 @@ Dos ensayos MariaDB 11.8.6 conciliaron 270,015 registros por destino, con conten
 Pasaron 16 pruebas unitarias y 47 comprobaciones nuevas de integración. La suite payables de 156 comprobaciones queda pendiente en MySQL 8.4. Captura y contabilización corresponden a FR-9.
 
 Runs 195b11b8-074a-4af4-b22b-1378fa1a32c4 y 30576e99-21da-49a0-abcc-14fe54db76ef. Huella 80daf63d3722e5ac435e935594dcf67191ecc3d4725e43d77e9075fc2160b472.
+
+## MySQL 8.4.3 en Laragon — payables aprobado
+
+Salida aportada por el usuario para el commit edf3050. Pasaron 156 comprobaciones sintéticas de integración, incluidas 47 de proveedores. El escenario de truncamiento en legacy_supplier_payment_items (22001/1406) comprobó el rollback. La limpieza de los datos de prueba terminó correctamente. Los ensayos con 270,015 registros por destino corresponden a MariaDB.
