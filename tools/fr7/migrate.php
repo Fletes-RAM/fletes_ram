@@ -91,14 +91,22 @@ function reconcile(array $expected, array $actual, array $maps): bool {
     }
     return true;
 }
-function reconcileStoredDomain(PDO $target,array $expected,string $table,array $definition,string $runId,?array &$diagnostic=null): bool {
+function mappingIdCollation(PDO $target):string {
+    $collation=$target->query("SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='migration_id_map' AND COLUMN_NAME='source_id'")->fetchColumn();
+    if(!is_string($collation)||!preg_match('/^utf8mb4_[a-z0-9_]+$/D',$collation))throw new RuntimeException('UNSUPPORTED_MAPPING_COLLATION');
+    return $collation;
+}
+function reconcileStoredDomain(PDO $target,iterable $expected,string $table,array $definition,string $runId,?array &$diagnostic=null,?int $expectedCount=null): bool {
     $diagnostic=['reason'=>'unknown'];
+    $expectedCount ??= is_countable($expected)?count($expected):throw new RuntimeException('EXPECTED_COUNT_REQUIRED');
     $dest=$definition['target'];$scope=fuelScope($definition);
     $q=$target->prepare('SELECT COUNT(*) FROM migration_id_map WHERE migration_run_id=? AND source_table=? AND target_table=?');$q->execute([$runId,$table,$dest]);
-    if((int)$q->fetchColumn()!==count($expected)){$diagnostic=['reason'=>'mapping_count'];return false;}
+    if((int)$q->fetchColumn()!==$expectedCount){$diagnostic=['reason'=>'mapping_count'];return false;}
     $where=$scope==='' ? '' : str_replace('legacy_source','a.legacy_source',$scope);
+    $columnCollation=mappingIdCollation($target);
+
     // IDs are canonical ASCII digits. Compare bytes, independent of server/connection collations.
-    $sql='SELECT a.*,m.source_id AS __map_source,m.target_id AS __map_target FROM `'.$dest.'` a LEFT JOIN migration_id_map m ON m.migration_run_id=? AND m.source_table=? AND m.target_table=? AND CAST(m.source_id AS BINARY)=CAST(a.legacy_id AS BINARY)'.$where.' ORDER BY a.legacy_id';
+    $sql='SELECT a.*,m.source_id AS __map_source,m.target_id AS __map_target FROM `'.$dest.'` a LEFT JOIN migration_id_map m ON m.migration_run_id=? AND m.source_table=? AND m.target_table=? AND m.source_id=CAST(a.legacy_id AS CHAR CHARACTER SET utf8mb4) COLLATE '.$columnCollation.' AND CAST(m.source_id AS BINARY)=CAST(a.legacy_id AS BINARY)'.$where.' ORDER BY a.legacy_id';
     $target->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY,false);
     $cursor=null;
     try {
@@ -124,8 +132,11 @@ function reconcileStoredDomain(PDO $target,array $expected,string $table,array $
 require_once __DIR__.'/core.php';
 require_once __DIR__.'/operations.php';
 require_once __DIR__.'/fuel.php';
+require_once __DIR__.'/billing.php';
+require_once __DIR__.'/streaming.php';
 
 function main(array $argv): int {
+    if(count($argv)===3&&$argv[2]==='--billing')return billingMain([$argv[0],$argv[1]]);
     $source = $target = null; $runId = null; $locked = false; $stage = 'preflight'; $reconciliationDiagnostic=null;
     try {
         $fuel = count($argv) === 3 && $argv[2] === '--fuel';

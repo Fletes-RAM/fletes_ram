@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
     [string]$Repository = 'C:\laragon\www\fletes_ram',
-    [string]$PhpBinary = ''
+    [string]$PhpBinary = '',
+    [ValidateSet('fuel','billing')][string]$Suite = 'fuel'
 )
 $ErrorActionPreference = 'Stop'
 $fr7TemporaryWorktree = $null
-$fr7EnvironmentNames = @('FR7_TEST_CREATE_FIXTURES','FR7_TEST_PORT','FR7_TEST_USER','FR7_TEST_PASS')
+$fr7EnvironmentNames = @('FR7_TEST_CREATE_FIXTURES','FR7_TEST_PORT','FR7_TEST_USER','FR7_TEST_PASS','FR7_TEST_SUITE')
 $fr7PreviousEnvironment = @{}
 foreach ($fr7Name in $fr7EnvironmentNames) { $fr7PreviousEnvironment[$fr7Name] = [Environment]::GetEnvironmentVariable($fr7Name,'Process') }
 try {
@@ -31,6 +32,7 @@ try {
     if (-not $fr7User) { $fr7User = 'root' }
     $fr7Secret = Read-Host 'Contrasena local (Enter si esta vacia; no se mostrara)' -AsSecureString
     $env:FR7_TEST_CREATE_FIXTURES = 'YES'
+    $env:FR7_TEST_SUITE = $Suite.ToLowerInvariant()
     $env:FR7_TEST_PORT = $fr7Port
     $env:FR7_TEST_USER = $fr7User
     $env:FR7_TEST_PASS = [System.Net.NetworkCredential]::new('', $fr7Secret).Password

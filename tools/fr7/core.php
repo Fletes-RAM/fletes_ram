@@ -88,5 +88,5 @@ function declaredSourceColumns(string $table,array $definition):array {
         'ram_asignaciones_especiales'=>['fecha','fecha_limite_pago','user_id'],
         default=>[]
     };
-    return array_values(array_unique(array_merge($columns,$extra)));
+    return array_values(array_unique(array_merge($columns,$extra,array_keys($definition['dates']??[]),$definition['extra_columns']??[])));
 }

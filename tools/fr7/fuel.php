@@ -10,7 +10,7 @@ function fuelDefinitions():array {
 }
 function fuelScope(array $definition):string {
     if(!isset($definition['scope']))return '';
-    if(!in_array($definition['scope'],['assignment','special'],true))throw new RuntimeException('INVALID_FUEL_SCOPE');
+    if(!in_array($definition['scope'],['assignment','special','quotation','control'],true))throw new RuntimeException('INVALID_FUEL_SCOPE');
     return " WHERE legacy_source='".$definition['scope']."'";
 }
 function fuelTransform(string $table,array $row,array $parents):array {

@@ -180,3 +180,23 @@ El runner PHP tiene sintaxis validada y se comprobó que rechaza MariaDB antes
 de crear/eliminar esquemas. El launcher PowerShell no se ha ejecutado en este
 entorno Linux. La compatibilidad MySQL 8.4 sólo quedará validada al ejecutar
 este bloque en ese motor; preparar el script no constituye un resultado PASSED.
+
+## Facturación/cobranza 0.6
+
+Perfil nuevo `--billing`, documentado en
+`docs/modernizacion/FR-7-facturacion-cobranza.md`.
+Lee por cursor a planes temporales; exige otro destino completamente vacío.
+Incluye núcleo/rutas, libro bancario de movimientos, controles y ambos orígenes
+de factura; no ejecuta el perfil de cargas de combustible en ese destino.
+Conserva orígenes explícitos y resúmenes de pago declarado, sin duplicar ingresos.
+Un vínculo bancario reconstruido por firma legacy única no es una FK original.
+Las coincidencias ambiguas/faltantes quedan pendientes y preservadas.
+
+Prueba local nueva: `php tools/fr7/tests/billing-unit.php`.
+Integración: `php tools/fr7/tests/mapping-index-integration.php` (incluye las
+fixtures core/operación/billing; exige servidor nuevo y la configuración de test).
+
+En Laragon, `tests/verify-mysql84.ps1 -Suite billing` ejecuta 111 controles nuevos
+y de regresión del perfil, en once esquemas temporales ausentes al comenzar.
+El modo predeterminado del launcher sigue siendo fuel. Este perfil billing
+está pendiente de su ejecución en MySQL 8.4; no repetir sólo el bloque anterior.

@@ -220,3 +220,99 @@ de la sección anterior. No certifica una migración con datos reales en MySQL:
 los dos ensayos con la copia real siguen siendo los ejecutados en MariaDB.
 Facturación/cobranza, demás dominios, adjuntos físicos y constraints globales
 continúan pendientes. FR-7 sigue En curso; producción no fue modificada.
+
+
+## Facturación y cobranza 0.6 — 2026-11-03
+
+Implementado --billing: núcleo/rutas, soporte bancario, controles vehiculares,
+facturas de cotización/control, invoice_sources, resúmenes de pago declarado y
+candidatos bancarios. Conservación de IDs, lectura consistente SELECT, planes
+temporales por cursor y transacción de todo el lote. No es una aplicación
+moderna ni un corte productivo; no crea ingresos bancarios adicionales.
+
+Nuevas pruebas: 15 unitarias + 65 integración billing + 2 de índice = 82.
+Total histórico distinto: 234 (152 previas + 82 nuevas). Regresiones catálogo,
+core, operación y combustible siguen pasando. El test de escala concilia 12,000
+filas con 12,000 lecturas de índice, sin cronometrar tiempos frágiles.
+Se cubren dos namespaces de factura con mismo ID, agrupación con control_id=0,
+ambas aristas coincidentes/contradictorias, origen huérfano, pago sin fecha,
+folio repetido, varios movimientos para una factura y un movimiento candidato
+a varias facturas. Corrupción de un mapa derivado con igual conteo es detectada.
+Un fallo en el último dominio revierte todas las filas/mapas/excepciones;
+se conserva el run failed. Columna fuente no revisada se rechaza antes de DDL.
+
+Ensayos reales, dump aportado 28/10/2026, PHP 8.4.26 / MariaDB 11.8.6 / UTC:
+dos destinos vacíos con igualdad de contenido/digests de todas las tablas de
+negocio, candidatos y relaciones; misma huella; origen completo del perfil
+sin cambios antes/después. Planes y conciliación no retienen todas las filas
+en memoria; ambos ensayos pasaron con memory_limit de PHP de 128 MiB.
+
+| Destino | Origen = destino = mapas directos |
+|---|---:|
+| clients | 58 |
+| vehicle_types | 11 |
+| vehicles | 49 |
+| operators | 166 |
+| routes | 801 |
+| route_segments | 1,448 |
+| fuel_efficiency_parameters | 45 |
+| quotations | 2,157 |
+| assignments | 1,141 |
+| fuel_stations | 27 |
+| financial_accounts | 11 |
+| financial_categories | 13 |
+| financial_subcategories | 112 |
+| financial_movements | 98,281 |
+| vehicle_controls | 64,684 |
+| invoices.quotation | 1,533 |
+| invoices.control | 47,560 |
+| **Total de filas fuente migradas** | **218,097** |
+
+El perfil billing no vuelve a migrar las cargas de --fuel en estos destinos.
+Los IDs de ram_users se leen únicamente como contexto, sin migrar credenciales.
+
+Derivados: 61,865 relaciones invoice_sources, 48,948 resúmenes de pago y 46,537
+aristas candidatas de movimiento bancario. Son derivados explícitos, no se
+suman como filas fuente. Mapas totales: 328,910 (directos + aristas + resúmenes).
+Se verificó además en modo read-only el contenido de los mapas derivados en
+ambos destinos reales después de los ensayos, no sólo su número.
+
+Estado de los resúmenes:
+- 46,350 linked: firma legacy exacta y mutuamente única reconstruida.
+- 126 ambiguous: sin elección automática de movimiento.
+- 2 invalid_payment_date: estado pagada preservado, fecha no inventada.
+- 2,470 missing: sin coincidencia bancaria bajo la regla conservadora.
+
+Los linked no equivalen a recuperar una FK inexistente ni a revisión contable.
+Se conserva el libro bancario por separado; los resúmenes no generan ni duplican
+movimientos. Se conciliaron importes por fila/SUM y 590 grupos de efecto firmado
+por cuenta/periodo, sin afirmar conciliación de préstamos/saldos de cierre.
+
+Excepciones totales por ensayo: 14,299 eventos (una fila puede generar varios).
+Entre ellas: 11,380 valores decimales textuales de controles conservados sin
+inferencia; 13 referencias de control sin factura padre; 141 marcadores de
+factura agrupada sin fuentes recuperables; 1 control con direcciones de factura
+contradictorias; los cobros ambiguos/faltantes y las anomalías previas del núcleo.
+Estos casos se preservan; passed certifica esa migración, no su resolución.
+
+Runs passed:
+- 23ffa309-3e0b-471b-aadf-49934964ba73.
+- 8f31c6db-d90f-4405-9aa3-ee20fc63da73.
+Huella de las tablas completas del perfil más ram_users.id:
+277e4dae9ce077dc18a4e5a59095986b7b8619b2425b4caa128cbb78afb7c870.
+
+Un intento de prueba previo se interrumpió por una unión de mapas sin uso del
+índice; no se cuenta como passed. Se ajustó la igualdad indexable a la collation
+real de la columna y se mantuvo el filtro binario exacto, con la regresión de
+12,000 filas mencionada arriba. La preparación del servidor aislado se corrigió
+para permitir consultar metadata de eventos sin ejecutar el scheduler.
+
+Pendiente de intervención: ejecutar el nuevo --billing en MySQL 8.4 de Laragon.
+El launcher -Suite billing prepara once esquemas temporales nuevos y ejecuta
+111 comprobaciones sintéticas de integración (core 30 + operación 14 + billing
+65 + índice 2). La aprobación MySQL anterior de 68 controles sigue siendo
+evidencia del perfil anterior; no se extiende al SQL nuevo de billing.
+
+Proveedores/CxP, préstamos, cierres/presupuestos, inventario, otros dominios,
+adjuntos, constraints globales, FR-8/FR-9 y ram_deudas siguen pendientes.
+Producción y rama master no se modificaron. FR-7 continúa En curso.
