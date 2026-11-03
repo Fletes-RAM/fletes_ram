@@ -215,3 +215,19 @@ Launcher local: tests/verify-mysql84.ps1 -Suite payables (trece esquemas nuevos)
 La salida final obtiene el número real de comprobaciones de la suite, sin
 mantener un contador manual en el runner. La validación MySQL de payables está
 pendiente; las aprobaciones anteriores de fuel/billing no se trasladan a este SQL.
+
+### Perfil acumulativo de bancos
+
+Usa `--inspect --banking`, `--dry-run --banking` o `--execute --banking`
+con las mismas variables y restricciones del perfil de proveedores. El destino
+de ejecución debe ser una base local vacía. Se conservan el periodo configurado,
+los préstamos y cada saldo histórico con su ID de origen.
+
+La auditoría `bank_closings` compara cada cierre marcado como cerrado con el saldo
+inicial más los movimientos y préstamos del mismo banco y periodo. La comparación
+usa importes decimales, claves de periodo exactas y signos 1/-1. Reporta por separado
+las diferencias y los cierres con signos sin interpretar. Las diferencias quedan
+disponibles para revisión y el saldo histórico se conserva.
+
+Para validar en Laragon con datos sintéticos, usa `verify-mysql84.ps1 -Suite banking`
+desde la revisión que incluye este perfil.
