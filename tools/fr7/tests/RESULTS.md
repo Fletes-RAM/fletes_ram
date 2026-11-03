@@ -194,3 +194,29 @@ izquierda y reutilización del cursor tras una divergencia. Total acumulado:
 152 controles distintos, manteniendo las comprobaciones anteriores.
 El reintento MySQL 8.4 sigue pendiente; esta corrección no se presenta como
 validada en el motor de Laragon hasta recibir una nueva ejecución.
+
+
+## MySQL 8.4.3 / Laragon — validación sintética aprobada (2026-11-03)
+
+Ejecución aportada por el usuario desde Cmder/Windows, PHP 8.4.12, servidor
+MySQL 8.4.3 local. Commit ejecutado: 9e51c11fd2c7bd8f38792b909ae2d6dc91c57dc9.
+
+- CORE INTEGRATION PASSED: 30 checks.
+- OPERATIONS INTEGRATION PASSED: 14 additional checks.
+- FUEL INTEGRATION PASSED: 24 additional checks.
+- CREATED_FIXTURES_CLEANED=YES.
+- MYSQL84_VERIFICATION=PASSED; synthetic only; 68 integration checks.
+
+Los mensajes FAILED observados en target_preflight, migration (SQLSTATE 22001,
+driver 1406) y preflight son fallos deliberados comprobados por las pruebas:
+destino poblado, inserción demasiado larga con rollback y origen MyISAM.
+No son fallos del resultado global. No se necesita repetir estas pruebas
+mientras no cambie el código relevante o aparezca otra causa de regresión.
+
+La comparación binaria permite completar este ensayo; la salida original no
+conservaba el error SQL y por ello no demuestra por sí sola su causa exacta.
+Esta evidencia sustituye la condición pendiente del reintento sintético MySQL
+de la sección anterior. No certifica una migración con datos reales en MySQL:
+los dos ensayos con la copia real siguen siendo los ejecutados en MariaDB.
+Facturación/cobranza, demás dominios, adjuntos físicos y constraints globales
+continúan pendientes. FR-7 sigue En curso; producción no fue modificada.
