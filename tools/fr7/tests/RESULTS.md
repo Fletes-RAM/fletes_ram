@@ -316,3 +316,17 @@ evidencia del perfil anterior; no se extiende al SQL nuevo de billing.
 Proveedores/CxP, préstamos, cierres/presupuestos, inventario, otros dominios,
 adjuntos, constraints globales, FR-8/FR-9 y ram_deudas siguen pendientes.
 Producción y rama master no se modificaron. FR-7 continúa En curso.
+
+
+## MySQL 8.4.3 / Laragon — billing aprobado (2026-11-03)
+
+Evidencia aportada desde Cmder con PHP 8.4.12, commit 300504c:
+CORE 30 + OPERATIONS 14 + BILLING 65 + MAPPING INDEX 2 = 111 controles
+sintéticos de integración aprobados. Escala: 12,000 filas, 12,001 lecturas de
+índice (dentro del límite lineal de la prueba). CREATED_FIXTURES_CLEANED=YES.
+MYSQL84_VERIFICATION=PASSED; suite=billing; synthetic only.
+Los FAILED de destino poblado, inserción larga (22001/1406) y cambio de esquema
+son escenarios negativos esperados. No se requiere repetir este bloque sin
+cambios relevantes. Queda cerrada la compatibilidad sintética MySQL pendiente
+arriba; los ensayos con datos reales de billing siguen siendo MariaDB.
+FR-7 continúa En curso. Siguiente bloque: proveedores y CxP.
