@@ -134,8 +134,10 @@ require_once __DIR__.'/operations.php';
 require_once __DIR__.'/fuel.php';
 require_once __DIR__.'/billing.php';
 require_once __DIR__.'/streaming.php';
+require_once __DIR__.'/payables.php';
 
 function main(array $argv): int {
+    if(count($argv)===3&&$argv[2]==='--payables')return billingMain([$argv[0],$argv[1]],'payables');
     if(count($argv)===3&&$argv[2]==='--billing')return billingMain([$argv[0],$argv[1]]);
     $source = $target = null; $runId = null; $locked = false; $stage = 'preflight'; $reconciliationDiagnostic=null;
     try {

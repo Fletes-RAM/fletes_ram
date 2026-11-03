@@ -5,8 +5,9 @@ $verificationAdmin=null;$verificationLocked=false;$verificationCleanup=false;$ve
 $verificationSuite=getenv('FR7_TEST_SUITE')?:'fuel';
 $verificationSchemas=['fr7_source_test','fr7_core_a_test','fr7_core_b_test','fr7_core_failure_test','fr7_ops_a_test','fr7_ops_b_test','fr7_fuel_a_test','fr7_fuel_b_test','fr7_fuel_engine_test'];
 if($verificationSuite==='billing')$verificationSchemas=['fr7_source_test','fr7_core_a_test','fr7_core_b_test','fr7_core_failure_test','fr7_ops_a_test','fr7_ops_b_test','fr7_billing_a_test','fr7_billing_b_test','fr7_billing_failure_test','fr7_billing_schema_test','fr7_mapping_index_test'];
+if($verificationSuite==='payables')$verificationSchemas=['fr7_source_test','fr7_core_a_test','fr7_core_b_test','fr7_core_failure_test','fr7_ops_a_test','fr7_ops_b_test','fr7_billing_a_test','fr7_billing_b_test','fr7_billing_failure_test','fr7_billing_schema_test','fr7_payables_a_test','fr7_payables_b_test','fr7_payables_failure_test'];
 try {
-    if(!in_array($verificationSuite,['fuel','billing'],true))throw new RuntimeException('Unknown suite');
+    if(!in_array($verificationSuite,['fuel','billing','payables'],true))throw new RuntimeException('Unknown suite');
     if(getenv('FR7_TEST_CREATE_FIXTURES')!=='YES')throw new RuntimeException('Explicit synthetic fixture opt-in required');
     $verificationPort=getenv('FR7_TEST_PORT')?:'3306';
     if(!preg_match('/^[0-9]+$/D',$verificationPort)||(int)$verificationPort<1||(int)$verificationPort>65535)throw new RuntimeException('Invalid local port');
@@ -26,7 +27,8 @@ try {
     if((int)$verificationAdmin->query("SELECT COUNT(*) FROM mysql.user WHERE User='fr7_core_reader' AND Host='127.0.0.1'")->fetchColumn()!==0)throw new RuntimeException('Fixture user already exists; nothing removed');
     // Every reserved name was absent before this suite. Only these may be cleaned.
     $verificationCleanup=true;$verificationStage='tests';
-    require __DIR__.($verificationSuite==='billing'?'/mapping-index-integration.php':'/fuel-integration.php');
+    require __DIR__.match($verificationSuite){'billing'=>'/mapping-index-integration.php','payables'=>'/payables-integration.php',default=>'/fuel-integration.php'};
+    $verificationChecks=$count;
     $verificationCode=0;
 } catch(Throwable $verificationError) {
     fwrite(STDERR,'MYSQL84_VERIFY_FAILED; stage='.$verificationStage.PHP_EOL);
@@ -42,5 +44,5 @@ try {
         try{$verificationAdmin->query("SELECT RELEASE_LOCK('fr7:mysql84:synthetic-tests')");}catch(Throwable $ignored){$verificationCode=1;}
     }
 }
-if($verificationCode===0)echo 'MYSQL84_VERIFICATION=PASSED; suite='.$verificationSuite.'; synthetic only; '.($verificationSuite==='billing'?111:68).' integration checks'.PHP_EOL;
+if($verificationCode===0)echo 'MYSQL84_VERIFICATION=PASSED; suite='.$verificationSuite.'; synthetic only; '.$verificationChecks.' integration checks'.PHP_EOL;
 exit($verificationCode);

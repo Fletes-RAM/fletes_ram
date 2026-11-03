@@ -200,3 +200,18 @@ En Laragon, `tests/verify-mysql84.ps1 -Suite billing` ejecuta 111 controles nuev
 y de regresión del perfil, en once esquemas temporales ausentes al comenzar.
 El modo predeterminado del launcher sigue siendo fuel. Este perfil billing
 está pendiente de su ejecución en MySQL 8.4; no repetir sólo el bloque anterior.
+
+## Proveedores y base de parcialidades 0.7
+
+`php tools/fr7/migrate.php --execute --payables` acumula billing y combustible,
+conserva catálogo/relaciones de proveedor y construye candidatos de revisión.
+No infiere cabeceras, abonos ni deuda histórica de importes repetidos.
+Ver docs/modernizacion/FR-7-proveedores-cxp-preservacion.md para el alcance exacto.
+
+La entrega incluye esquema factura1:Npagos y función de saldo decimal exacto;
+la captura y contabilización transaccional de abonos sigue pendiente de FR-9.
+Pruebas: tests/payables-unit.php y tests/payables-integration.php.
+Launcher local: tests/verify-mysql84.ps1 -Suite payables (trece esquemas nuevos).
+La salida final obtiene el número real de comprobaciones de la suite, sin
+mantener un contador manual en el runner. La validación MySQL de payables está
+pendiente; las aprobaciones anteriores de fuel/billing no se trasladan a este SQL.

@@ -26,7 +26,9 @@ function verifyLedgerGroups(PDO $source,PDO $target):int {
     if($t->fetch()!==false)throw new RuntimeException('LEDGER_GROUP_EXTRA');
     $s->closeCursor();$t->closeCursor();return $groups;
 }
-function billingMain(array $argv):int {
+function billingMain(array $argv,string $profile='billing'):int {
+    $payables=$profile==='payables';
+    if(!in_array($profile,['billing','payables'],true))throw new RuntimeException('UNKNOWN_PROFILE');
     $source=$target=null;$locked=false;$runId=null;$spools=[];$stage='preflight';$diagnostic=null;
     try {
         if(count($argv)!==2||!in_array($argv[1],['--inspect','--dry-run','--execute'],true))throw new RuntimeException('MODE_REQUIRED');
@@ -41,7 +43,7 @@ function billingMain(array $argv):int {
         foreach(['TRIGGERS'=>'TRIGGER_SCHEMA','ROUTINES'=>'ROUTINE_SCHEMA','EVENTS'=>'EVENT_SCHEMA'] as $catalog=>$col)if((int)$target->query('SELECT COUNT(*) FROM information_schema.'.$catalog.' WHERE '.$col.'=DATABASE()')->fetchColumn()!==0)throw new RuntimeException('TARGET_PROGRAMS_FORBIDDEN');
         $source->exec("SET time_zone='+00:00'");$target->exec("SET time_zone='+00:00'");
         $target->exec("SET SESSION sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
-        $definitions=billingDefinitions();$tables=array_merge(array_keys($definitions),['ram_users']);
+        $definitions=$payables?payablesDefinitions():billingDefinitions();$tables=array_merge(array_keys($definitions),['ram_users']);
         $stage='source_schema';
         foreach($tables as $table){
             $q=$source->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?');$q->execute([$table]);if($q->fetchColumn()!=='InnoDB')throw new RuntimeException('SOURCE_ENGINE_UNSUPPORTED');
@@ -53,7 +55,8 @@ function billingMain(array $argv):int {
         $parents=[];
         foreach($tables as $table){$parents[$table]=[];$q=$source->query('SELECT id FROM `'.$table.'` ORDER BY id');while(($id=$q->fetchColumn())!==false)$parents[$table][(string)$id]=true;$q->closeCursor();}
         $context=['quotation_clients'=>[]];$q=$source->query('SELECT id,cliente_id FROM ram_cotizaciones ORDER BY id');while($r=$q->fetch())$context['quotation_clients'][(string)$r['id']]=(string)$r['cliente_id'];$q->closeCursor();
-        $hash=hash_init('sha256');hash_update($hash,'fr7:billing:v1:');$counts=[];$exceptionCounts=[];$total=0;$exceptionsTotal=0;
+        if($payables)foreach(['ram_asignaciones_combustibles','ram_asignaciones_especiales'] as $fuelTable){$q=$source->query('SELECT id,gasolinera_id FROM '.$fuelTable.' ORDER BY id');while($r=$q->fetch())$context['fuel_stations'][$fuelTable][(string)$r['id']]=(string)$r['gasolinera_id'];$q->closeCursor();}
+        $hash=hash_init('sha256');hash_update($hash,$payables?'fr7:payables:v1:':'fr7:billing:v1:');$counts=[];$exceptionCounts=[];$total=0;$exceptionsTotal=0;
         foreach($tables as $table){
             $stage='source_plan:'.$table;hash_update($hash,strlen($table).':'.$table);$counts[$table]=0;$exceptionCounts[$table]=0;
             if($table!=='ram_users'){$spools[$table]=tmpfile();if($spools[$table]===false)throw new RuntimeException('PRIVATE_TEMPORARY_PLAN_UNAVAILABLE');}
@@ -63,7 +66,7 @@ function billingMain(array $argv):int {
                 while($row=$cursor->fetch()){
                     $json=json_encode($row,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);hash_update($hash,strlen($json).':'.$json);$counts[$table]++;
                     if($table==='ram_users')continue;
-                    [$values,$items]=billingTransform($table,$row,$parents,$context);spoolWrite($spools[$table],['values'=>$values,'exceptions'=>$items]);
+                    [$values,$items]=$payables?payablesTransform($table,$row,$parents,$context):billingTransform($table,$row,$parents,$context);spoolWrite($spools[$table],['values'=>$values,'exceptions'=>$items]);
                     $total++;$exceptionCounts[$table]+=count($items);$exceptionsTotal+=count($items);
                 }
             }finally{if($cursor!==null)$cursor->closeCursor();$source->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY,true);}
@@ -71,10 +74,12 @@ function billingMain(array $argv):int {
         $fingerprint=hash_final($hash);unset($parents,$context);
         if($argv[1]==='--dry-run'){$source->commit();echo json_encode(['mode'=>'dry-run','source'=>$total,'exceptions'=>$exceptionsTotal,'fingerprint'=>$fingerprint],JSON_THROW_ON_ERROR).PHP_EOL;return 0;}
         $stage='bootstrap';
-        foreach(['001_bootstrap.sql','002_core.sql','003_operations.sql','005_billing.sql'] as $file){$sql=file_get_contents(__DIR__.'/'.$file);if($sql===false)throw new RuntimeException('BOOTSTRAP_UNREADABLE');foreach(explode(';',$sql) as $stmt)if(trim($stmt)!=='')$target->exec($stmt);}
+        $bootstrapFiles=['001_bootstrap.sql','002_core.sql','003_operations.sql','005_billing.sql'];if($payables)$bootstrapFiles=array_merge($bootstrapFiles,['004_fuel.sql','006_payables.sql']);
+        foreach($bootstrapFiles as $file){$sql=file_get_contents(__DIR__.'/'.$file);if($sql===false)throw new RuntimeException('BOOTSTRAP_UNREADABLE');foreach(explode(';',$sql) as $stmt)if(trim($stmt)!=='')$target->exec($stmt);}
         $targetTables=array_merge(['migration_runs','migration_id_map','migration_exceptions','invoice_sources','collections','collection_movement_candidates'],array_values(array_unique(array_column($definitions,'target'))));
+        if($payables)$targetTables=array_merge($targetTables,['supplier_invoice_candidates','supplier_invoices','supplier_invoice_items','supplier_payments']);
         foreach($targetTables as $table){$q=$target->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?');$q->execute([$table]);if($q->fetchColumn()!=='InnoDB')throw new RuntimeException('TARGET_ENGINE_UNSUPPORTED');}
-        $uuid=uuidv4();$target->prepare('INSERT INTO migration_runs (uuid,source_fingerprint,source_label,started_at,status,migrator_version) VALUES (?,?,?,NOW(),?,?)')->execute([$uuid,$fingerprint,'local-billing','running','fr7-v0.6']);$runId=(string)$target->lastInsertId();
+        $uuid=uuidv4();$target->prepare('INSERT INTO migration_runs (uuid,source_fingerprint,source_label,started_at,status,migrator_version) VALUES (?,?,?,NOW(),?,?)')->execute([$uuid,$fingerprint,'local-'.$profile,'running',$payables?'fr7-v0.7':'fr7-v0.6']);$runId=(string)$target->lastInsertId();
         $target->beginTransaction();$stage='migration';
         $map=$target->prepare('INSERT INTO migration_id_map (migration_run_id,domain,source_table,source_id,target_table,target_id,action) VALUES (?,?,?,?,?,?,?)');
         $exception=$target->prepare("INSERT INTO migration_exceptions (migration_run_id,domain,source_table,source_id,code,severity,resolution,status,target_table,target_id) VALUES (?,?,?,?,?,'warning',?,?,?,?)");
@@ -100,10 +105,11 @@ function billingMain(array $argv):int {
             }
         }
         $stage='billing_derivation';$metrics['derived']=deriveBilling($target,$runId);
-        $stage='relation_reconciliation';foreach(billingRelations() as [$child,$column,$parent])if((int)$target->query('SELECT COUNT(*) FROM `'.$child.'` c LEFT JOIN `'.$parent.'` p ON p.id=c.`'.$column.'` WHERE c.`'.$column.'` IS NOT NULL AND p.id IS NULL')->fetchColumn()!==0)throw new RuntimeException('RELATION_RECONCILIATION_FAILED');
+        $stage='payables_derivation';if($payables)$metrics['payables']=derivePayables($target,$runId);
+        $stage='relation_reconciliation';foreach(($payables?payablesRelations():billingRelations()) as [$child,$column,$parent])if((int)$target->query('SELECT COUNT(*) FROM `'.$child.'` c LEFT JOIN `'.$parent.'` p ON p.id=c.`'.$column.'` WHERE c.`'.$column.'` IS NOT NULL AND p.id IS NULL')->fetchColumn()!==0)throw new RuntimeException('RELATION_RECONCILIATION_FAILED');
         $stage='ledger_reconciliation';$metrics['ledger_groups_reconciled']=verifyLedgerGroups($source,$target);
         $source->commit();$stage='commit';$target->prepare("UPDATE migration_runs SET finished_at=NOW(),status='passed',metrics=? WHERE id=?")->execute([json_encode($metrics,JSON_THROW_ON_ERROR),$runId]);$target->commit();
-        echo 'FR-7 billing run '.$uuid.': PASSED; source_rows='.$total.PHP_EOL;return 0;
+        echo 'FR-7 '.$profile.' run '.$uuid.': PASSED; source_rows='.$total.PHP_EOL;return 0;
     }catch(Throwable $e){
         $cleanupFailed=false;foreach([$source,$target] as $p){try{if($p instanceof PDO&&$p->inTransaction())$p->rollBack();}catch(Throwable $ignored){$cleanupFailed=true;}}
         if($runId!==null){try{$target->prepare("UPDATE migration_runs SET finished_at=NOW(),status='failed',notes=? WHERE id=?")->execute(['FAILED_STAGE:'.$stage,$runId]);}catch(Throwable $ignored){$cleanupFailed=true;}}

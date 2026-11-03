@@ -349,3 +349,11 @@ No se presenta este perfil como un migrador CxP ejecutado.
 Se necesita confirmar si valor_factura podía ser abono parcial o siempre
 total liquidado, antes de cerrar la transformación cabecera/pago/saldo.
 Las anomalías y todas las filas se conservan; producción permanece intacta.
+
+## Proveedores 0.7 — 2026-11-03
+
+Dos ensayos MariaDB 11.8.6 conciliaron 270,015 registros por destino, con contenido idéntico y origen intacto. Se preservaron 796 proveedores y 25,748 relaciones históricas. Quedaron 7,632 candidatos sin verificar, 322 referencias sin combustible y 263 filas con tickets repetidos. Se crearon cero cabeceras o abonos por inferencia.
+
+Pasaron 16 pruebas unitarias y 47 comprobaciones nuevas de integración. La suite payables de 156 comprobaciones queda pendiente en MySQL 8.4. Captura y contabilización corresponden a FR-9.
+
+Runs 195b11b8-074a-4af4-b22b-1378fa1a32c4 y 30576e99-21da-49a0-abcc-14fe54db76ef. Huella 80daf63d3722e5ac435e935594dcf67191ecc3d4725e43d77e9075fc2160b472.
