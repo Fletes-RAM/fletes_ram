@@ -91,22 +91,30 @@ function reconcile(array $expected, array $actual, array $maps): bool {
     }
     return true;
 }
-function reconcileStoredDomain(PDO $target,array $expected,string $table,array $definition,string $runId): bool {
+function reconcileStoredDomain(PDO $target,array $expected,string $table,array $definition,string $runId,?array &$diagnostic=null): bool {
+    $diagnostic=['reason'=>'unknown'];
     $dest=$definition['target'];$scope=fuelScope($definition);
     $q=$target->prepare('SELECT COUNT(*) FROM migration_id_map WHERE migration_run_id=? AND source_table=? AND target_table=?');$q->execute([$runId,$table,$dest]);
-    if((int)$q->fetchColumn()!==count($expected))return false;
+    if((int)$q->fetchColumn()!==count($expected)){$diagnostic=['reason'=>'mapping_count'];return false;}
     $where=$scope==='' ? '' : str_replace('legacy_source','a.legacy_source',$scope);
-    $sql='SELECT a.*,m.source_id AS __map_source,m.target_id AS __map_target FROM `'.$dest.'` a LEFT JOIN migration_id_map m ON m.migration_run_id=? AND m.source_table=? AND m.target_table=? AND m.source_id=CAST(a.legacy_id AS CHAR)'.$where.' ORDER BY a.legacy_id';
+    // IDs are canonical ASCII digits. Compare bytes, independent of server/connection collations.
+    $sql='SELECT a.*,m.source_id AS __map_source,m.target_id AS __map_target FROM `'.$dest.'` a LEFT JOIN migration_id_map m ON m.migration_run_id=? AND m.source_table=? AND m.target_table=? AND CAST(m.source_id AS BINARY)=CAST(a.legacy_id AS BINARY)'.$where.' ORDER BY a.legacy_id';
     $target->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY,false);
     $cursor=null;
     try {
         $cursor=$target->prepare($sql);$cursor->execute([$runId,$table,$dest]);
         foreach($expected as $row){
             $actual=$cursor->fetch();
-            if($actual===false || (string)$actual['__map_source']!==(string)$row['legacy_id'] || (string)$actual['__map_target']!==(string)$actual['id'])return false;
-            foreach($row as $column=>$value){$got=$actual[$column];if($value===null ? $got!==null : ($got===null || (string)$got!==(string)$value))return false;}
+            if($actual===false){$diagnostic=['reason'=>'missing_target_row'];return false;}
+            if((string)$actual['__map_source']!==(string)$row['legacy_id']){$diagnostic=['reason'=>'source_mapping'];return false;}
+            if((string)$actual['__map_target']!==(string)$actual['id']){$diagnostic=['reason'=>'target_mapping'];return false;}
+            foreach($row as $column=>$value){
+                $got=$actual[$column];
+                if($value===null ? $got!==null : ($got===null || (string)$got!==(string)$value)){$diagnostic=['reason'=>'field_mismatch','column'=>$column];return false;}
+            }
         }
-        return $cursor->fetch()===false;
+        if($cursor->fetch()!==false){$diagnostic=['reason'=>'extra_target_row'];return false;}
+        $diagnostic=['reason'=>'equal'];return true;
     } finally {
         if($cursor!==null)$cursor->closeCursor();
         $target->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY,true);
@@ -118,7 +126,7 @@ require_once __DIR__.'/operations.php';
 require_once __DIR__.'/fuel.php';
 
 function main(array $argv): int {
-    $source = $target = null; $runId = null; $locked = false; $stage = 'preflight';
+    $source = $target = null; $runId = null; $locked = false; $stage = 'preflight'; $reconciliationDiagnostic=null;
     try {
         $fuel = count($argv) === 3 && $argv[2] === '--fuel';
         $operations = $fuel || (count($argv) === 3 && $argv[2] === '--operations');
@@ -243,7 +251,8 @@ function main(array $argv): int {
         $stage = 'reconciliation'; $metrics=[];
         foreach ($definitions as $table=>$definition) {
             $dest=$definition['target'];$scope=fuelScope($definition);
-            if (!reconcileStoredDomain($target,$expectedByTable[$table],$table,$definition,$runId)) throw new RuntimeException('CONTENT_RECONCILIATION_FAILED');
+            $stage='reconciliation:'.$dest;
+            if (!reconcileStoredDomain($target,$expectedByTable[$table],$table,$definition,$runId,$reconciliationDiagnostic)) throw new RuntimeException('CONTENT_RECONCILIATION_FAILED');
             $verifiedCount=count($expectedByTable[$table]);
             $metricKey=isset($definition['scope']) ? $dest.'.'.$definition['scope'] : $dest;
             $metrics[$metricKey]=['source'=>$sourceCounts[$table],'target'=>$verifiedCount,'mapped'=>$verifiedCount,'exceptions'=>count(array_filter($exceptions,fn($e)=>$e['source_table']===$table)),'content_equal'=>true];
@@ -277,7 +286,15 @@ function main(array $argv): int {
             try { $target->prepare("UPDATE migration_runs SET finished_at=NOW(),status='failed',notes=? WHERE id=?")->execute(['FAILED_STAGE:'.$stage,$runId]); }
             catch (Throwable $ignored) { $cleanupFailed = true; }
         }
-        fwrite(STDERR, 'FR-7 FAILED; stage='.$stage.($cleanupFailed ? '; AUDIT_OR_ROLLBACK_FAILED' : '').PHP_EOL);
+        $safeDetail='';
+        if($e instanceof PDOException){
+            $state=(string)($e->errorInfo[0]??$e->getCode());
+            if(preg_match('/^[A-Z0-9]{5}$/D',$state))$safeDetail.='; SQLSTATE='.$state;
+            if(isset($e->errorInfo[1])&&is_numeric($e->errorInfo[1]))$safeDetail.='; DRIVER_CODE='.(int)$e->errorInfo[1];
+        } elseif(str_starts_with($stage,'reconciliation:')&&is_array($reconciliationDiagnostic)) {
+            foreach($reconciliationDiagnostic as $key=>$value)if(preg_match('/^[a-z_]+$/D',(string)$value))$safeDetail.='; '.$key.'='.$value;
+        }
+        fwrite(STDERR, 'FR-7 FAILED; stage='.$stage.$safeDetail.($cleanupFailed ? '; AUDIT_OR_ROLLBACK_FAILED' : '').PHP_EOL);
         return 1;
     } finally {
         if ($locked) {

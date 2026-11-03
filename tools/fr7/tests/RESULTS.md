@@ -171,3 +171,26 @@ El verificador ejecutará 64 controles sintéticos de integración sobre nueve
 esquemas temporales nuevos, sin usar fletes_ram_local ni el dump real. Esta
 comprobación necesita acceso al MySQL 8.4 de Laragon, no disponible desde el
 entorno del agente. El ensayo real en MariaDB permanece válido y separado.
+
+
+## Reintento MySQL 8.4.3 — 2026-11-03
+
+Ejecución aportada desde Laragon/Windows sobre 70ba7e0: engine 8.4.3,
+fallo stage=reconciliation en la primera migración de fixtures core. No se
+cuenta como prueba aprobada. CREATED_FIXTURES_CLEANED=YES confirmado.
+La salida previa ocultaba el SQLSTATE, código del driver y dominio afectado;
+no permite afirmar por sí sola una causa exacta.
+
+Ajuste de la unión ID/mapa a comparación binaria de dígitos canónicos para
+eliminar dependencia de collations de conexión/servidor. Se añade diagnóstico
+por tabla y motivo/campo de divergencia, o SQLSTATE/código numérico del driver,
+sin imprimir valores de fila ni mensajes SQL. El launcher PowerShell usa
+mensajes ASCII para evitar mojibake en Windows PowerShell 5.1/Cmder.
+
+Regresión local: integración core 30 + operación 14 + combustible 24 = 68
+comprobaciones aprobadas en MariaDB 11.8.6. Cuatro controles nuevos cubren
+collations diferentes, diagnóstico sin valores, rechazo de ID con ceros a la
+izquierda y reutilización del cursor tras una divergencia. Total acumulado:
+152 controles distintos, manteniendo las comprobaciones anteriores.
+El reintento MySQL 8.4 sigue pendiente; esta corrección no se presenta como
+validada en el motor de Laragon hasta recibir una nueva ejecución.

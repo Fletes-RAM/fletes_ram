@@ -37,6 +37,17 @@ coreCheck(!reconcileStoredDomain($target,[$expected],'ram_asignaciones_combustib
 $target->exec("UPDATE fuel_loads SET total_amount=3.99 WHERE id=22");
 $target->exec("UPDATE migration_id_map SET target_id='23' WHERE source_table='ram_asignaciones_combustibles'");
 coreCheck(!reconcileStoredDomain($target,[$expected],'ram_asignaciones_combustibles',$definition,(string)$runs[1]['id']),'wrong-context mapping detected');
+$diagnostic=null;
+coreCheck(!reconcileStoredDomain($target,[$expected],'ram_asignaciones_combustibles',$definition,(string)$runs[1]['id'],$diagnostic)&&$diagnostic===['reason'=>'target_mapping'],'mapping diagnostic contains no row values');
+$target->exec("UPDATE migration_id_map SET target_id='22' WHERE source_table='ram_asignaciones_combustibles'");
+$target->exec('ALTER TABLE migration_id_map MODIFY source_id VARCHAR(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
+$target->exec("SET collation_connection='utf8mb4_general_ci'");
+coreCheck(reconcileStoredDomain($target,[$expected],'ram_asignaciones_combustibles',$definition,(string)$runs[1]['id']),'mapping comparison independent of connection collation');
+$target->exec("UPDATE migration_id_map SET source_id='011' WHERE source_table='ram_asignaciones_combustibles'");
+coreCheck(!reconcileStoredDomain($target,[$expected],'ram_asignaciones_combustibles',$definition,(string)$runs[1]['id'],$diagnostic)&&$diagnostic===['reason'=>'source_mapping'],'ID byte identity no leading-zero aliases');
+$target->exec("UPDATE migration_id_map SET source_id='11' WHERE source_table='ram_asignaciones_combustibles'");
+coreCheck(reconcileStoredDomain($target,[$expected],'ram_asignaciones_combustibles',$definition,(string)$runs[1]['id']),'cursor reusable after diagnostic failure');
+
 // A source engine that cannot supply a transactional snapshot is rejected before DDL.
 $a->exec('CREATE DATABASE fr7_fuel_engine_test');putenv('FR7_TARGET_DB=fr7_fuel_engine_test');$a->exec('ALTER TABLE fr7_source_test.ram_asignaciones_combustibles ENGINE=MyISAM');
 coreCheck(invokeFuel('--execute')===1,'MyISAM source rejected');

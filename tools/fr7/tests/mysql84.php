@@ -39,5 +39,5 @@ try {
         try{$verificationAdmin->query("SELECT RELEASE_LOCK('fr7:mysql84:synthetic-tests')");}catch(Throwable $ignored){$verificationCode=1;}
     }
 }
-if($verificationCode===0)echo 'MYSQL84_VERIFICATION=PASSED; synthetic only; 64 integration checks'.PHP_EOL;
+if($verificationCode===0)echo 'MYSQL84_VERIFICATION=PASSED; synthetic only; 68 integration checks'.PHP_EOL;
 exit($verificationCode);

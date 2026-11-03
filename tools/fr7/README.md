@@ -168,7 +168,7 @@ un checkout temporal separado. Detecta el PHP 8.4 instalado; pide puerto,
 usuario y contraseña local (oculta). No hace checkout/pull/merge en tu rama.
 La contraseña vive sólo en el entorno del proceso y se restaura al terminar.
 
-El runner `tests/mysql84.php` requiere MySQL 8.4 real y ejecuta 64 comprobaciones
+El runner `tests/mysql84.php` requiere MySQL 8.4 real y ejecuta 68 comprobaciones
 sintéticas de integración (core + operación + combustible). No importa el dump.
 Exige que no existan sus nueve esquemas fr7_*_test ni su usuario de fixtures;
 si encuentra uno, se detiene sin borrarlo. Después limpia exclusivamente los
