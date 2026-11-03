@@ -330,3 +330,22 @@ son escenarios negativos esperados. No se requiere repetir este bloque sin
 cambios relevantes. Queda cerrada la compatibilidad sintética MySQL pendiente
 arriba; los ensayos con datos reales de billing siguen siendo MariaDB.
 FR-7 continúa En curso. Siguiente bloque: proveedores y CxP.
+
+
+## Proveedores/CxP — perfil previo al siguiente incremento (2026-11-03)
+
+Copia aislada del dump aportado: 796 proveedores; 25,748 relaciones ticket/pago;
+322 referencias sin combustible padre; 93 claves de ticket repetidas.
+No hubo referencias fuera del formato a-ID/e-ID ni importes fuera de la
+gramática decimal básica (la escala/rango todavía no se certifica).
+6,742 firmas candidatas de captura; 2 abarcan varios días de created_at.
+50 combinaciones gasolinera/folio tienen importes distintos y 31 fechas
+declaradas distintas. Esto no demuestra por sí mismo pagos parciales.
+El controlador repite valor_factura por ticket y genera un egreso por captura:
+sumarlo por fila duplicaría importes. La relación gasolinera/catálogo no tiene
+una identidad fiscal común demostrada; no se fusionan personas por nombre.
+Perfil y reglas: docs/modernizacion/FR-7-proveedores-perfil-migracion.md.
+No se presenta este perfil como un migrador CxP ejecutado.
+Se necesita confirmar si valor_factura podía ser abono parcial o siempre
+total liquidado, antes de cerrar la transformación cabecera/pago/saldo.
+Las anomalías y todas las filas se conservan; producción permanece intacta.
