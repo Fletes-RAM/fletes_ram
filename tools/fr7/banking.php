@@ -40,7 +40,8 @@ function bankClosingMetrics(PDO $target): array {
     $sql = <<<'SQL'
         WITH activity AS (
             SELECT legacy_account_id, CAST(legacy_period AS BINARY) AS legacy_period, amount,
-                CASE direction WHEN 'inflow' THEN 1 WHEN 'outflow' THEN -1 END AS sign
+                CASE WHEN direction = 'inflow' THEN 1 WHEN direction = 'outflow' THEN -1
+                    WHEN direction = 'none' AND amount = 0 THEN 0 END AS sign
             FROM financial_movements
             UNION ALL
             SELECT legacy_account_id, CAST(legacy_period AS BINARY) AS legacy_period, amount,

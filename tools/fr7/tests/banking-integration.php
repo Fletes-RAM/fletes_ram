@@ -35,4 +35,21 @@ coreCheck($metrics['bank_closings']['closed_rows']===2
     && $metrics['bank_closings']['matched']===1
     && $metrics['bank_closings']['different']===1,'closing comparison retains multiple snapshots');
 coreCheck((int)$a->query("SELECT COUNT(*) FROM fr7_banking_test.migration_id_map WHERE domain='banking'")->fetchColumn()===4,'all banking source rows mapped');
+
+$bankingTarget=connectDatabase('FR7_TARGET');
+$bankingTarget->exec("INSERT INTO financial_movements
+    (id,legacy_id,legacy_account_id,legacy_period,description,reference,notes,
+     legacy_category_id,legacy_subcategory_id,legacy_business_date,
+     legacy_quantity,legacy_type,amount,direction)
+    VALUES (999999,999999,1,'fixture','Zero movement','','',1,'1','2026-01-01',0,'1',0,'none')");
+$zeroMetrics=bankClosingMetrics($bankingTarget);
+coreCheck($zeroMetrics['matched']===1 && $zeroMetrics['different']===1
+    && $zeroMetrics['unknown_direction']===0,'zero movement has no closing effect');
+$bankingTarget->exec('UPDATE financial_movements SET amount=1 WHERE id=999999');
+coreCheck(bankClosingMetrics($bankingTarget)['unknown_direction']===2,
+    'nonzero movement without direction remains unresolved');
+$bankingTarget->exec('UPDATE financial_movements SET amount=0,direction=NULL WHERE id=999999');
+coreCheck(bankClosingMetrics($bankingTarget)['unknown_direction']===2,
+    'zero movement with unknown direction remains unresolved');
+
 echo 'BANKING INTEGRATION PASSED: '.($count-$start).' additional checks'.PHP_EOL;
