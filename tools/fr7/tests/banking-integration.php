@@ -30,6 +30,9 @@ coreCheck(main(['migrate.php','--dry-run','--banking'])===0,'banking dry run');
 coreCheck((int)$a->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='fr7_banking_test'")->fetchColumn()===0,'banking dry run leaves target empty');
 coreCheck(main(['migrate.php','--execute','--banking'])===0,'banking execute');
 $metrics=json_decode($a->query('SELECT metrics FROM fr7_banking_test.migration_runs')->fetchColumn(),true,512,JSON_THROW_ON_ERROR);
-coreCheck($metrics['bank_closings']===['closed_rows'=>2,'unknown_direction'=>0,'matched'=>1,'different'=>1],'closing comparison retains multiple snapshots');
+coreCheck($metrics['bank_closings']['closed_rows']===2
+    && $metrics['bank_closings']['unknown_direction']===0
+    && $metrics['bank_closings']['matched']===1
+    && $metrics['bank_closings']['different']===1,'closing comparison retains multiple snapshots');
 coreCheck((int)$a->query("SELECT COUNT(*) FROM fr7_banking_test.migration_id_map WHERE domain='banking'")->fetchColumn()===4,'all banking source rows mapped');
 echo 'BANKING INTEGRATION PASSED: '.($count-$start).' additional checks'.PHP_EOL;
