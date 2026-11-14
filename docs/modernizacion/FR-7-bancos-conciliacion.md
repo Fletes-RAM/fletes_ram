@@ -17,3 +17,9 @@ La consulta corregida, ejecutada en MariaDB sobre una proyección decimal de mov
 Este ejercicio valida la consulta de conciliación sobre la copia. La suite completa de MySQL 8.4 con esta corrección queda pendiente.
 
 Los saldos históricos se conservan con sus importes registrados.
+
+## Ensayo del migrador completo
+
+El 14 de noviembre de 2026 se ejecutó el perfil acumulativo banking del commit `08e8a2b` en MariaDB. Pasaron 164 comprobaciones sintéticas. Sobre la copia histórica, el ensayo en seco dejó vacío el destino. Las dos ejecuciones en destinos aislados migraron 301,663 filas cada una y entregaron contenido idéntico. La huella de las tablas de origen coincidió antes y después.
+
+Ambas ejecuciones conciliaron 967 de 967 cierres, con cero diferencias y cero signos pendientes. Falta comprobar las tres pruebas nuevas del perfil banking en MySQL 8.4.3 de Laragon.
