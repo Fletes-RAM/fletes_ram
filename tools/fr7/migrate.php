@@ -138,8 +138,10 @@ require_once __DIR__.'/payables.php';
 require_once __DIR__.'/banking.php';
 require_once __DIR__.'/maintenance.php';
 require_once __DIR__.'/inventory.php';
+require_once __DIR__.'/logbook.php';
 
 function main(array $argv): int {
+    if(count($argv)===3&&$argv[2]==='--logbook')return billingMain([$argv[0],$argv[1]],'logbook');
     if(count($argv)===3&&$argv[2]==='--inventory')return billingMain([$argv[0],$argv[1]],'inventory');
     if(count($argv)===3&&$argv[2]==='--maintenance')return billingMain([$argv[0],$argv[1]],'maintenance');
     if(count($argv)===3&&$argv[2]==='--banking')return billingMain([$argv[0],$argv[1]],'banking');

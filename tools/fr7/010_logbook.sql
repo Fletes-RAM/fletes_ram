@@ -1,0 +1,22 @@
+CREATE TABLE vehicle_logbook (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    notes TEXT NOT NULL,
+    tire_brand VARCHAR(255) NOT NULL,
+    special_repair TEXT NOT NULL,
+    occurred_on DATE NULL,
+    legacy_occurred_on VARCHAR(10) NOT NULL,
+    cost DECIMAL(15,2) NOT NULL,
+    odometer DECIMAL(18,4) NULL,
+    legacy_odometer VARCHAR(255) NOT NULL,
+    vehicle_id BIGINT UNSIGNED NULL,
+    legacy_vehicle_id BIGINT UNSIGNED NOT NULL,
+    supplier_id BIGINT UNSIGNED NULL,
+    legacy_supplier_id BIGINT UNSIGNED NOT NULL,
+    legacy_checks TEXT NOT NULL CHECK (JSON_VALID(legacy_checks)),
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    KEY (vehicle_id, occurred_on),
+    KEY (supplier_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

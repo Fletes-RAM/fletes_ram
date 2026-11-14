@@ -264,3 +264,14 @@ vinculadas y cuenta saldos reconstruidos negativos. Una diferencia se reporta
 sin alterar la existencia registrada ni crear movimientos de ajuste.
 
 En Laragon, usa `tests/verify-mysql84.ps1 -Suite inventory`.
+
+### Perfil acumulativo de bitácora
+
+Usa `--inspect --logbook`, `--dry-run --logbook` o `--execute --logbook`.
+Cada evento conserva su ID, unidad, proveedor, fecha, costo, notas e
+indicadores. El kilometraje original queda disponible junto a su valor
+decimal cuando es interpretable. Los indicadores conservan sus valores
+originales en un objeto JSON almacenado como texto para conciliar su
+contenido de forma idéntica en ambos motores.
+
+En Laragon, usa `tests/verify-mysql84.ps1 -Suite logbook`.
