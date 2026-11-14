@@ -250,7 +250,17 @@ bancarios y de las facturas de proveedores.
 En Laragon, `tests/verify-mysql84.ps1 -Suite maintenance` ejecuta la suite
 sintética acumulativa.
 
-En MariaDB pasaron 172 comprobaciones sintéticas. Dos ensayos sobre la copia
-histórica migraron 313,379 filas por destino y produjeron contenido idéntico.
-Conciliaron las 11,716 notas y su importe acumulado de 105,140,022.52.
-La auditoría registró 14 estados sin equivalencia y 8 referencias de proveedor 0.
+### Perfil acumulativo de inventarios y llantas
+
+Usa `--inspect --inventory`, `--dry-run --inventory` o `--execute --inventory`.
+Para el ensayo local, restaura las seis tablas de inventario con motor InnoDB
+en la copia de origen. El migrador exige ese motor para la lectura consistente.
+
+El perfil conserva catálogos separados, claves repetidas, existencias
+registradas, precios, entradas y salidas con su unidad. Las referencias sin
+correspondencia conservan su ID de origen y quedan en la auditoría. La métrica
+`inventory_stock` compara la existencia registrada con entradas menos salidas
+vinculadas y cuenta saldos reconstruidos negativos. Una diferencia se reporta
+sin alterar la existencia registrada ni crear movimientos de ajuste.
+
+En Laragon, usa `tests/verify-mysql84.ps1 -Suite inventory`.
