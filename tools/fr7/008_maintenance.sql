@@ -1,0 +1,20 @@
+CREATE TABLE maintenance_notes (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    legacy_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    legacy_invoice_reference VARCHAR(255) NOT NULL,
+    issued_on DATE NULL,
+    legacy_issued_on VARCHAR(10) NOT NULL,
+    legacy_term_days VARCHAR(255) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    legacy_discount VARCHAR(255) NOT NULL,
+    vehicle_id BIGINT UNSIGNED NULL,
+    legacy_vehicle_id BIGINT UNSIGNED NOT NULL,
+    supplier_id BIGINT UNSIGNED NULL,
+    legacy_supplier_id BIGINT NOT NULL,
+    payment_status VARCHAR(10) NULL,
+    legacy_status VARCHAR(7) NOT NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    KEY (vehicle_id),
+    KEY (supplier_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

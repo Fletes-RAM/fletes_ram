@@ -231,3 +231,26 @@ disponibles para revisión y el saldo histórico se conserva.
 
 Para validar en Laragon con datos sintéticos, usa `verify-mysql84.ps1 -Suite banking`
 desde la revisión que incluye este perfil.
+
+### Perfil acumulativo de mantenimiento
+
+Usa `--inspect --maintenance`, `--dry-run --maintenance` o
+`--execute --maintenance` con las mismas variables del perfil bancario.
+El perfil conserva cada nota de `ram_mantenimientos` con su ID, referencia,
+importe decimal, fecha original, plazo, descuento y estado. Enlaza unidades
+y proveedores por ID. Los identificadores sin correspondencia se conservan
+en sus columnas legacy y se registran en la auditoría.
+
+El estado vacío se mapea a pendiente y `Pagado` a pagado. Los demás estados
+se conservan como texto con una excepción. El importe se conserva tal como
+se registró. Las referencias de factura repetidas se mantienen por nota.
+El estado histórico de pago se conserva independientemente de los movimientos
+bancarios y de las facturas de proveedores.
+
+En Laragon, `tests/verify-mysql84.ps1 -Suite maintenance` ejecuta la suite
+sintética acumulativa.
+
+En MariaDB pasaron 172 comprobaciones sintéticas. Dos ensayos sobre la copia
+histórica migraron 313,379 filas por destino y produjeron contenido idéntico.
+Conciliaron las 11,716 notas y su importe acumulado de 105,140,022.52.
+La auditoría registró 14 estados sin equivalencia y 8 referencias de proveedor 0.

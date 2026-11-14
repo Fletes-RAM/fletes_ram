@@ -136,8 +136,10 @@ require_once __DIR__.'/billing.php';
 require_once __DIR__.'/streaming.php';
 require_once __DIR__.'/payables.php';
 require_once __DIR__.'/banking.php';
+require_once __DIR__.'/maintenance.php';
 
 function main(array $argv): int {
+    if(count($argv)===3&&$argv[2]==='--maintenance')return billingMain([$argv[0],$argv[1]],'maintenance');
     if(count($argv)===3&&$argv[2]==='--banking')return billingMain([$argv[0],$argv[1]],'banking');
     if(count($argv)===3&&$argv[2]==='--payables')return billingMain([$argv[0],$argv[1]],'payables');
     if(count($argv)===3&&$argv[2]==='--billing')return billingMain([$argv[0],$argv[1]]);
