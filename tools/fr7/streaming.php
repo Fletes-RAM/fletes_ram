@@ -27,12 +27,13 @@ function verifyLedgerGroups(PDO $source,PDO $target):int {
     $s->closeCursor();$t->closeCursor();return $groups;
 }
 function billingMain(array $argv,string $profile='billing'):int {
-    $logbook=$profile==='logbook';
+    $payroll=$profile==='payroll';
+    $logbook=$payroll||$profile==='logbook';
     $inventory=$logbook||$profile==='inventory';
     $maintenance=$inventory||$profile==='maintenance';
     $banking=$maintenance||$profile==='banking';
     $payables=$banking||$profile==='payables';
-    if(!in_array($profile,['billing','payables','banking','maintenance','inventory','logbook'],true))throw new RuntimeException('UNKNOWN_PROFILE');
+    if(!in_array($profile,['billing','payables','banking','maintenance','inventory','logbook','payroll'],true))throw new RuntimeException('UNKNOWN_PROFILE');
     $source=$target=null;$locked=false;$runId=null;$spools=[];$stage='preflight';$diagnostic=null;
     try {
         if(count($argv)!==2||!in_array($argv[1],['--inspect','--dry-run','--execute'],true))throw new RuntimeException('MODE_REQUIRED');
@@ -47,7 +48,7 @@ function billingMain(array $argv,string $profile='billing'):int {
         foreach(['TRIGGERS'=>'TRIGGER_SCHEMA','ROUTINES'=>'ROUTINE_SCHEMA','EVENTS'=>'EVENT_SCHEMA'] as $catalog=>$col)if((int)$target->query('SELECT COUNT(*) FROM information_schema.'.$catalog.' WHERE '.$col.'=DATABASE()')->fetchColumn()!==0)throw new RuntimeException('TARGET_PROGRAMS_FORBIDDEN');
         $source->exec("SET time_zone='+00:00'");$target->exec("SET time_zone='+00:00'");
         $target->exec("SET SESSION sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
-        $definitions=match($profile){'logbook'=>logbookDefinitions(),'inventory'=>inventoryDefinitions(),'maintenance'=>maintenanceDefinitions(),'banking'=>bankingDefinitions(),'payables'=>payablesDefinitions(),default=>billingDefinitions()};
+        $definitions=match($profile){'payroll'=>payrollDefinitions(),'logbook'=>logbookDefinitions(),'inventory'=>inventoryDefinitions(),'maintenance'=>maintenanceDefinitions(),'banking'=>bankingDefinitions(),'payables'=>payablesDefinitions(),default=>billingDefinitions()};
         $transform=$profile.'Transform';$tables=array_merge(array_keys($definitions),['ram_users']);
         $stage='source_schema';
         foreach($tables as $table){
@@ -84,11 +85,12 @@ function billingMain(array $argv,string $profile='billing'):int {
         if($maintenance)$bootstrapFiles[]='008_maintenance.sql';
         if($inventory)$bootstrapFiles[]='009_inventory.sql';
         if($logbook)$bootstrapFiles[]='010_logbook.sql';
+        if($payroll)$bootstrapFiles[]='011_payroll.sql';
         foreach($bootstrapFiles as $file){$sql=file_get_contents(__DIR__.'/'.$file);if($sql===false)throw new RuntimeException('BOOTSTRAP_UNREADABLE');foreach(explode(';',$sql) as $stmt)if(trim($stmt)!=='')$target->exec($stmt);}
         $targetTables=array_merge(['migration_runs','migration_id_map','migration_exceptions','invoice_sources','collections','collection_movement_candidates'],array_values(array_unique(array_column($definitions,'target'))));
         if($payables)$targetTables=array_merge($targetTables,['supplier_invoice_candidates','supplier_invoices','supplier_invoice_items','supplier_payments']);
         foreach($targetTables as $table){$q=$target->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?');$q->execute([$table]);if($q->fetchColumn()!=='InnoDB')throw new RuntimeException('TARGET_ENGINE_UNSUPPORTED');}
-        $uuid=uuidv4();$target->prepare('INSERT INTO migration_runs (uuid,source_fingerprint,source_label,started_at,status,migrator_version) VALUES (?,?,?,NOW(),?,?)')->execute([$uuid,$fingerprint,'local-'.$profile,'running',match($profile){'logbook'=>'fr7-v0.11','inventory'=>'fr7-v0.10','maintenance'=>'fr7-v0.9','banking'=>'fr7-v0.8','payables'=>'fr7-v0.7',default=>'fr7-v0.6'}]);$runId=(string)$target->lastInsertId();
+        $uuid=uuidv4();$target->prepare('INSERT INTO migration_runs (uuid,source_fingerprint,source_label,started_at,status,migrator_version) VALUES (?,?,?,NOW(),?,?)')->execute([$uuid,$fingerprint,'local-'.$profile,'running',match($profile){'payroll'=>'fr7-v0.12','logbook'=>'fr7-v0.11','inventory'=>'fr7-v0.10','maintenance'=>'fr7-v0.9','banking'=>'fr7-v0.8','payables'=>'fr7-v0.7',default=>'fr7-v0.6'}]);$runId=(string)$target->lastInsertId();
         $target->beginTransaction();$stage='migration';
         $map=$target->prepare('INSERT INTO migration_id_map (migration_run_id,domain,source_table,source_id,target_table,target_id,action) VALUES (?,?,?,?,?,?,?)');
         $exception=$target->prepare("INSERT INTO migration_exceptions (migration_run_id,domain,source_table,source_id,code,severity,resolution,status,target_table,target_id) VALUES (?,?,?,?,?,'warning',?,?,?,?)");

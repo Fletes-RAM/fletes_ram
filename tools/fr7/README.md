@@ -275,3 +275,24 @@ originales en un objeto JSON almacenado como texto para conciliar su
 contenido de forma idéntica en ambos motores.
 
 En Laragon, usa `tests/verify-mysql84.ps1 -Suite logbook`.
+
+### Perfil acumulativo de asistencia y liquidaciones
+
+Usa `--inspect --payroll`, `--dry-run --payroll` o `--execute --payroll`.
+Conserva cada asistencia y periodo de liquidación por su ID histórico.
+Los periodos guardan la referencia a `ram_users`, conforme a la FK real de
+`ram_sueldos.operador_id`. La existencia del usuario se verifica al migrar
+y las referencias faltantes se registran en la auditoría.
+
+El perfil conserva fechas originales, tipos de asistencia desconocidos y
+periodos invertidos con sus excepciones. Los duplicados históricos por
+persona y fecha se preservan en las tablas legacy. Las liquidaciones contienen
+periodos registrados y mantienen su significado histórico. La captura futura
+de asistencia y las reglas de liquidación pertenecen a la aplicación moderna.
+
+En Laragon, usa `tests/verify-mysql84.ps1 -Suite payroll`.
+
+En MariaDB pasaron 191 comprobaciones sintéticas. Dos ensayos sobre la copia
+histórica produjeron contenido idéntico con 329,301 filas por destino.
+Conciliaron 9,543 asistencias y 4,763 periodos de liquidación sin excepciones
+en ambos dominios. La huella del origen coincidió antes y después.

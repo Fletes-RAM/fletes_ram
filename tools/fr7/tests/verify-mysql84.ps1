@@ -2,7 +2,7 @@
 param(
     [string]$Repository = 'C:\laragon\www\fletes_ram',
     [string]$PhpBinary = '',
-    [ValidateSet('fuel','billing','payables','banking','maintenance','inventory','logbook')][string]$Suite = 'fuel'
+    [ValidateSet('fuel','billing','payables','banking','maintenance','inventory','logbook','payroll')][string]$Suite = 'fuel'
 )
 $ErrorActionPreference = 'Stop'
 $fr7TemporaryWorktree = $null
